@@ -15,6 +15,7 @@ html { background: var(--bg); }
 body { color: var(--ink); font: 300 16px/1.6 Jost, "Noto Sans TC", system-ui, sans-serif; letter-spacing: .02em; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
 [hidden] { display: none !important; }
 button, a { font: inherit; color: inherit; letter-spacing: inherit; }
+body.pick { cursor: pointer; }
 #stage { position: fixed; inset: 0; width: 100%; height: 100%; display: block; background: var(--bg); opacity: 0; transition: opacity 1.2s; }
 body.ready #stage { opacity: 1; }
 /* 靜態版本：背景圖放在 body::before，畫布整個拿掉（場景跑到一半才換過來時，畫布上還留著最後一格） */
@@ -25,7 +26,6 @@ body.nogpu::before { content: ""; position: fixed; inset: 0; background: #05070b
 
 header { position: fixed; z-index: 5; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; padding: 26px clamp(20px, 4vw, 56px); }
 .brand { font-size: 19px; letter-spacing: .14em; text-decoration: none; }
-.menu { width: 26px; height: 14px; border: 0; background: linear-gradient(var(--ink), var(--ink)) top/100% 1.5px no-repeat, linear-gradient(var(--ink), var(--ink)) bottom/100% 1.5px no-repeat; cursor: pointer; }
 
 /* 貼在場景表面的標示（由 main.js 做透視） */
 .wl { position: fixed; z-index: 1; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; white-space: nowrap; opacity: 0; will-change: transform; color: #f4efe6; text-shadow: 0 0 18px rgba(255,220,170,.35); }
@@ -176,7 +176,6 @@ body.ready #load, body.nogpu #load { opacity: 0; visibility: hidden; }
 
 <header>
   <a class="brand" href="#" data-go="0">FG STUDIO</a>
-  <button class="menu" aria-label="選單" data-go="4"></button>
 </header>
 <div class="note">此裝置不支援 WebGPU，顯示靜態版本</div>
 
