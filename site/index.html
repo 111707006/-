@@ -42,6 +42,9 @@ header { position: fixed; z-index: 5; top: 0; left: 0; right: 0; display: flex; 
 .panel .no { font-size: 14px; letter-spacing: .22em; color: var(--dim); }
 .panel h2 { font-weight: 300; font-size: clamp(28px, 4.2vw, 46px); letter-spacing: .08em; line-height: 1.15; margin: 8px 0 14px; }
 .panel p { color: var(--dim); max-width: 30em; font-size: 15.5px; }
+/* 場景裡已經有同名大字的站：說明不重複標題（靜態版本沒有場景標示，照常顯示） */
+body:not(.nogpu) .panel h2.dup { display: none; }
+body:not(.nogpu) .panel h2.dup + p { margin-top: 10px; }
 .panel .acts { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
 .btn { display: inline-flex; align-items: center; gap: 12px; padding: 13px 22px; border: 1px solid var(--line); background: rgba(8,10,14,.45); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); text-decoration: none; cursor: pointer; font-size: 13px; letter-spacing: .2em; text-transform: uppercase; transition: background .25s, border-color .25s, color .25s; }
 .btn:hover { border-color: var(--ink); }
@@ -49,7 +52,7 @@ header { position: fixed; z-index: 5; top: 0; left: 0; right: 0; display: flex; 
 .btn.solid:hover { background: #fff; }
 .btn::after { content: "→"; font-size: 16px; letter-spacing: 0; }
 .hero { max-width: 760px; }
-.hero h1 { font-weight: 300; font-size: clamp(36px, 5.6vw, 76px); letter-spacing: .06em; line-height: 1.02; }
+.hero h1 { font-weight: 300; font-size: clamp(34px, 5vw, 68px); letter-spacing: .06em; line-height: 1.02; }
 .hero .sub { margin-top: 14px; font-size: clamp(13px, 1.5vw, 17px); letter-spacing: .26em; color: var(--dim); text-transform: uppercase; }
 .hint { position: fixed; z-index: 4; right: clamp(20px, 4vw, 56px); bottom: clamp(28px, 7vh, 72px); font-size: 11px; letter-spacing: .3em; color: var(--dim); writing-mode: vertical-rl; transition: opacity .5s; }
 .hint::after { content: ""; display: inline-block; width: 1px; height: 56px; margin-top: 12px; background: linear-gradient(var(--ink), transparent); animation: drop 2.2s infinite; transform-origin: top; }
@@ -67,6 +70,13 @@ body:not([data-stop="0"]) .hint { opacity: 0; }
 #lightbox .x { position: absolute; top: 22px; right: 26px; background: none; border: 0; font-size: 30px; cursor: pointer; }
 .note { position: fixed; z-index: 6; left: 50%; top: 22px; transform: translateX(-50%); font-size: 12px; letter-spacing: .18em; color: var(--dim); border: 1px solid var(--line); padding: 6px 14px; background: rgba(8,10,14,.5); display: none; }
 body.nogpu .note { display: block; }
+/* 載入畫面：場景畫出第一格（或換成靜態版本）之前蓋住全頁 */
+#load { position: fixed; z-index: 30; inset: 0; background: var(--bg); display: grid; place-content: center; justify-items: center; gap: 22px; transition: opacity .9s, visibility 0s .9s; }
+#load b { font-weight: 300; font-size: 22px; letter-spacing: .34em; padding-left: .34em; }
+#load i { display: block; width: 160px; height: 1px; background: var(--line); position: relative; overflow: hidden; }
+#load i::after { content: ""; position: absolute; inset: 0; width: 40%; background: var(--warm); animation: load 1.4s infinite ease-in-out; }
+@keyframes load { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+body.ready #load, body.nogpu #load { opacity: 0; visibility: hidden; }
 @media (max-width: 640px) {
   .rail { display: none; }
   .panel p { font-size: 14.5px; }
@@ -75,13 +85,14 @@ body.nogpu .note { display: block; }
 </style>
 </head>
 <body data-stop="0">
+<div id="load" aria-hidden="true"><b>FG STUDIO</b><i></i></div>
 <canvas id="stage" aria-hidden="true"></canvas>
 <div class="shade"></div>
 
 <!-- 場景表面上的標示：data-o 原點（公尺）、data-r 文字方向、data-s 每像素幾公尺 -->
-<div class="wl" data-o="-9.86,10.9,21.3" data-r="0,0,-1" data-s="0.0165"><small>PORTFOLIO</small><b>BRAND CONTENT</b><i>廣告行銷</i></div>
-<div class="wl" data-o="9.86,11.3,10.7" data-r="0,0,1" data-s="0.0165"><small>GVS</small><b>BRAND FILM</b><i>形象影片</i></div>
-<div class="wl desk" data-o="0.5,0.86,3.02" data-r="1,0,0" data-s="0.0056" data-stops="0,1,2,4"><img src="assets/fg.png" alt="FG"><span></span>CUSTOMER SERVICE</div>
+<div class="wl" data-o="-9.86,10.9,21.3" data-r="0,0,-1" data-s="0.0165" data-stops="2"><small>PORTFOLIO</small><b>BRAND CONTENT</b><i>廣告行銷</i></div>
+<div class="wl" data-o="9.86,11.3,10.7" data-r="0,0,1" data-s="0.0165" data-stops="1"><small>GVS</small><b>BRAND FILM</b><i>形象影片</i></div>
+<div class="wl desk" data-o="0.5,0.86,3.02" data-r="1,0,0" data-s="0.0056" data-stops="0,4"><img src="assets/fg.png" alt="FG"><span></span>CUSTOMER SERVICE</div>
 
 <header>
   <a class="brand" href="#" data-go="0">FG STUDIO</a>
@@ -107,7 +118,7 @@ body.nogpu .note { display: block; }
 
 <section class="panel">
   <div class="no">02 — PORTFOLIO</div>
-  <h2>BRAND CONTENT</h2>
+  <h2 class="dup">BRAND CONTENT</h2>
   <p>品牌客製化影像製作，為不同產業打造專屬的影像風格。螢幕牆上播放的都是實際作品。</p>
 </section>
 
@@ -119,7 +130,7 @@ body.nogpu .note { display: block; }
 
 <section class="panel">
   <div class="no">04 — CONTACT / PROJECT</div>
-  <h2>CUSTOMER SERVICE</h2>
+  <h2 class="dup">CUSTOMER SERVICE</h2>
   <p>專案洽詢、報價諮詢、預約通話與後續客服支援。</p>
   <div class="acts"><a class="btn solid" href="mailto:forgod20232023@gmail.com?subject=FG%20STUDIO%20Project%20Inquiry">開始洽談</a></div>
 </section>
