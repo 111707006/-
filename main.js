@@ -7,7 +7,7 @@ import { initGL } from './gl.js';
 const $ = (s) => document.querySelector(s);
 const canvas = $('#stage');
 const qs = new URLSearchParams(location.search);
-const MEDIA = '../media-library/';
+const MEDIA = 'media-library/';
 
 // ---------- 場景：方塊（min, max, 材質）----------
 // 材質：0 磚 1 石材 2 發光玻璃 3 影片螢幕 4 大廳後牆 5 工作站螢幕 6 黑金屬 7 接待螢幕 8 大廳天花
