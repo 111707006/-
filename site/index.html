@@ -17,9 +17,11 @@ body { color: var(--ink); font: 300 16px/1.6 Jost, "Noto Sans TC", system-ui, sa
 button, a { font: inherit; color: inherit; letter-spacing: inherit; }
 #stage { position: fixed; inset: 0; width: 100%; height: 100%; display: block; background: var(--bg); opacity: 0; transition: opacity 1.2s; }
 body.ready #stage { opacity: 1; }
-body.nogpu #stage { opacity: 1; background: #05070b url(assets/fallback.jpg) center/cover; }
+/* 靜態版本：背景圖放在 body::before，畫布整個拿掉（場景跑到一半才換過來時，畫布上還留著最後一格） */
+body.nogpu #stage { display: none; }
+body.nogpu::before { content: ""; position: fixed; inset: 0; background: #05070b url(assets/fallback.jpg) center/cover; }
 #track { width: 1px; pointer-events: none; }
-.shade { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(90% 70% at 0% 100%, rgba(4,5,8,.9), transparent 70%), linear-gradient(180deg, rgba(5,7,11,.5), transparent 20%, transparent 55%, rgba(5,7,11,.7)); }
+.shade { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(110% 85% at 0% 100%, rgba(4,5,8,.94), rgba(4,5,8,.6) 42%, transparent 74%), linear-gradient(180deg, rgba(5,7,11,.5), transparent 20%, transparent 55%, rgba(5,7,11,.7)); }
 
 header { position: fixed; z-index: 5; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; padding: 26px clamp(20px, 4vw, 56px); }
 .brand { font-size: 19px; letter-spacing: .14em; text-decoration: none; }
@@ -78,6 +80,7 @@ body.nogpu .note { display: block; }
 @keyframes load { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
 body.ready #load, body.nogpu #load { opacity: 0; visibility: hidden; }
 @media (max-width: 640px) {
+  .note { top: 70px; white-space: nowrap; }
   .rail { display: none; }
   .panel p { font-size: 14.5px; }
   .hint { display: none; }

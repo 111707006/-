@@ -34,25 +34,15 @@ i = box(2.3, 1.2, 2.2, 3.2, 1.72, 2.24, 7); boxes[i][7] = i;
 box(2.71, 1.12, 2.24, 2.79, 1.3, 2.28, 6);
 // 大廳入口的直框
 for (const x of [-6.9, 6.9]) box(x - 0.03, 0, -0.3, x + 0.03, 5.0, -0.22, 6);
-// GVS 作業中心：長桌、六座工作站（螢幕、椅子）
+// GVS 作業中心：長桌、六座工作站的螢幕。這一段排在最後，著色器可以整段跳過
+const nOuter = boxes.length;
 box(-5.6, 0.70, -9.4, 5.6, 0.76, -8.3, 1);
 box(-5.5, 0, -9.3, -5.38, 0.7, -8.4, 6); box(5.38, 0, -9.3, 5.5, 0.7, -8.4, 6);
 for (let k = 0; k < 6; k++) {
   const x = -4.5 + k * 1.8;
   i = box(x - 0.55, 0.92, -9.0, x + 0.55, 1.56, -8.95, 5); boxes[i][7] = i;
   box(x - 0.04, 0.76, -9.03, x + 0.04, 0.95, -8.99, 6);
-  // 椅子：座墊、與座墊分開的椅背、背桿、氣壓桿、十字椅腳
-  box(x - 0.24, 0.43, -8.0, x + 0.24, 0.51, -7.54, 6);
-  box(x - 0.22, 0.62, -7.56, x + 0.22, 1.04, -7.50, 6);
-  box(x - 0.13, 1.07, -7.555, x + 0.13, 1.22, -7.505, 6);   // 頭枕
-  box(x - 0.03, 0.47, -7.53, x + 0.03, 1.10, -7.49, 6);
-  for (const s of [-1, 1]) {                                 // 扶手與支柱
-    box(x + s * 0.265 - 0.025, 0.66, -7.90, x + s * 0.265 + 0.025, 0.69, -7.56, 6);
-    box(x + s * 0.265 - 0.018, 0.47, -7.66, x + s * 0.265 + 0.018, 0.66, -7.62, 6);
-  }
-  box(x - 0.025, 0.05, -7.795, x + 0.025, 0.43, -7.745, 6);
-  box(x - 0.27, 0.02, -7.79, x + 0.27, 0.05, -7.75, 6);
-  box(x - 0.02, 0.02, -8.04, x + 0.02, 0.05, -7.50, 6);
+  // 椅子不是方塊：由著色器的距離場繪製（shader.js 的 chairs()）
 }
 
 // ---------- 線光源 [ax,ay,az,強度, bx,by,bz,光暈（負值=冷色）] ----------
@@ -60,10 +50,10 @@ const lines = [];
 for (const z of [7, 11, 15, 19, 23, 27, 31]) { const hl = 2.0 + 0.21 * z; lines.push([-hl, 0.03, z, 0.7, hl, 0.03, z, 0.28]); }
 lines.push([-4.5, 0.06, 3.06, 2.2, 4.5, 0.06, 3.06, 0.9]);             // 櫃檯底
 lines.push([-8.55, 0.08, 12.5, 0.9, -8.55, 0.08, 19.5, 0.35], [8.55, 0.08, 12.5, 0.9, 8.55, 0.08, 19.5, 0.35]); // 長凳底
-for (const z of [-2.6, -6.5, -10.4]) lines.push([-5.2, 4.96, z, 1.5, 5.2, 4.96, z, 0.6]); // 大廳天花
+for (const z of [-2.6, -6.5, -10.4]) lines.push([-5.2, 4.96, z, 1.2, 5.2, 4.96, z, 0.6]); // 大廳天花
 lines.push([-5.3, 0.05, -9.25, 1.1, 5.3, 0.05, -9.25, 0.3]);            // 長桌底
 // 「BEYOND THE FRAME」：大廳入口的冷色光框，鏡頭會穿過它
-{ const z = 0.45, w = 7.0, y0 = 0.04, y1 = 5.22, I = 0.8, H = -1.0;
+{ const z = 0.45, w = 7.0, y0 = 0.04, y1 = 5.22, I = 0.5, H = -1.0;
   lines.push([-w, y0, z, I, w, y0, z, H], [-w, y1, z, I, w, y1, z, H], [-w, y0, z, I, -w, y1, z, H], [w, y0, z, I, w, y1, z, H]); }
 
 // ---------- 鏡頭路徑 ----------
@@ -148,27 +138,28 @@ addEventListener('keydown', (e) => { if (e.key === 'Escape' && !lb.hidden) close
 let mx = 0, my = 0;
 addEventListener('pointermove', (e) => { mx = e.clientX / innerWidth - 0.5; my = e.clientY / innerHeight - 0.5; });
 
+let introK = 1; // 開場鏡頭的進度：0 最遠，1 就定位
 function ui(T) {
   const s = Math.round(T), near = 1 - Math.min(Math.abs(T - s) * 3.2, 1);
-  panels.forEach((p, k) => { const on = k === s && near > 0.25; p.classList.toggle('on', on); p.style.setProperty('--k', k === s ? near : 0); });
+  panels.forEach((p, k) => { const on = k === s && near > 0.25 && (k !== 0 || introK > 0.82); p.classList.toggle('on', on); p.style.setProperty('--k', k === s ? near : 0); });
   dots.forEach((d, k) => d.classList.toggle('on', k === s));
   document.body.dataset.stop = s;
 }
 
 // ---------- 啟動 ----------
 function fallback(msg) {
-  document.body.classList.add('nogpu');
+  document.body.classList.add('nogpu'); introK = 1;
   console.warn('WebGPU unavailable:', msg);
   const loop = () => { ui(scrollT()); requestAnimationFrame(loop); }; loop();
 }
 
 async function start() {
-  if (!navigator.gpu) return fallback('no navigator.gpu');
+  if (!navigator.gpu || qs.has('nogpu')) return fallback('no navigator.gpu'); // ?nogpu：強制看靜態版本
   const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
   if (!adapter) return fallback('no adapter');
   const device = await adapter.requestDevice();
   window.__gpu = device; // 保留參照，避免被回收
-  device.lost.then((i) => { console.warn('device lost:', i.reason, i.message); fallback('device lost'); });
+  device.lost.then((i) => { console.warn('device lost:', i.reason, i.message); if (!dead) { dead = true; fallback('device lost'); } });
   device.addEventListener('uncapturederror', (e) => console.error('GPU error:', e.error.message));
   // ?offscreen：畫到離屏材質再讀回 2D 畫布，給沒有顯示卡、無法呈現 WebGPU 畫布的環境截圖用
   const OFF = qs.has('offscreen');
@@ -184,7 +175,7 @@ async function start() {
     layout: 'auto', vertex: { module, entryPoint: 'vs' }, fragment: { module, entryPoint: 'fs', targets: [{ format }] }, primitive: { topology: 'triangle-list' },
   });
 
-  const HEAD = 24, data = new Float32Array(HEAD + MAX_BOXES * 8 + MAX_LINES * 8);
+  const HEAD = 28, data = new Float32Array(HEAD + MAX_BOXES * 8 + MAX_LINES * 8);
   boxes.forEach((b, k) => data.set(b, HEAD + k * 8));
   lines.forEach((l, k) => data.set(l, HEAD + MAX_BOXES * 8 + k * 8));
   const ubuf = device.createBuffer({ size: data.byteLength, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
@@ -193,7 +184,9 @@ async function start() {
   const bind = device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: ubuf } }, { binding: 1, resource: tex.createView() }, { binding: 2, resource: smp }] });
 
   // 依幀時間調整解析度
-  let scale = qs.has('scale') ? +qs.get('scale') : Math.min(devicePixelRatio, 1.5), acc = 0, frames = 0;
+  // 解析度倍率：最高 1.5（一倍螢幕上等於超取樣，當成抗鋸齒），太慢就往下降
+  const SS = 1.5, MIN = 0.45;
+  let scale = qs.has('scale') ? +qs.get('scale') : Math.min(devicePixelRatio, SS), acc = 0, frames = 0, best = 1e9, cool = 0, coolN = 20, slowN = 0, dead = false;
   const fixedScale = qs.has('scale');
   let W = 0, H = 0;
   function resize() {
@@ -203,7 +196,10 @@ async function start() {
   addEventListener('resize', () => { resize(); setHeight(); }); resize();
 
   const fixedT = qs.has('t') ? +qs.get('t') : null;
-  let Ts = fixedT ?? scrollT(), t0 = performance.now(), last = t0, power = qs.has('t') ? 1 : 0;
+  // 開場（由遠推近、燈依序亮起）：固定站點、減少動態效果、或一進來就不在頂端時略過
+  const noIntro = fixedT != null || qs.has('nointro') || matchMedia('(prefers-reduced-motion: reduce)').matches || scrollT() > 0.05;
+  let Ts = fixedT ?? scrollT(), t0 = performance.now(), last = t0, tI = noIntro ? 99 : 0;
+  introK = noIntro ? 1 : 0;
   window.__ready = false;
 
   function frame(now) {
@@ -211,18 +207,24 @@ async function start() {
     const time = qs.has('time') ? +qs.get('time') : (now - t0) / 1000;
     const target = fixedT ?? scrollT();
     Ts += (target - Ts) * (fixedT != null ? 1 : 1 - Math.exp(-dt * 4.2));
-    power = Math.min(1, power + dt / 2.4);
+    tI += dt * (scrollT() > 0.03 ? 5 : 1); // 一捲動就快轉
+    const sm = (x) => ease(Math.min(Math.max(x, 0), 1));
+    const warmOn = sm((tI - 0.3) / 1.8), glassOn = sm((tI - 1.6) / 2.4);
+    introK = 1 - Math.pow(1 - Math.min(tI / 6, 1), 3);
     const T = settle(Ts);
     ui(Ts);
 
     // 鏡頭
     const c = camAt(T), aspect = W / H;
+    const far = (1 - introK) * Math.max(1 - T, 0);
+    c.p[2] += 30 * far; c.p[1] += 2.2 * far; c.l[1] += 1.6 * far;
     const tall = Math.min(Math.max(1 / aspect - 1, 0), 1.2);
     // 直式螢幕：首頁少一點天空；櫃檯那一站退後、右移、視角收窄，櫃檯上的字才放得進畫面
-    const t4 = tall * Math.min(Math.max(T - 3, 0), 1);
+    // 形象影片那一站往左退、往右看，整面螢幕才放得進；作業中心退到門口並放寬視角，六座都入鏡
+    const k1 = tall * Math.max(1 - Math.abs(T - 1), 0), k3 = Math.max(1 - Math.abs(T - 3), 0), k4 = Math.min(Math.max(T - 3, 0), 1), t4 = tall * k4;
     c.l[1] -= tall * 1.6 * Math.max(1 - T, 0) + t4 * 0.55;
-    c.p[0] += t4 * 1.5; c.l[0] += t4 * 1.2; c.p[2] += t4 * 0.9;
-    const hfov = (27 - 6 * Math.min(Math.max(T - 3, 0), 1)) * Math.PI / 180;
+    c.p[0] += t4 * 1.5 - k1 * 1.5; c.l[0] += t4 * 1.2; c.p[2] += t4 * 0.9 + tall * k3 * 1.6; c.l[2] += k1 * 2.5;
+    const hfov = (27 + 6 * k3 - 6 * k4) * Math.PI / 180;
     const tanH = Math.max(Math.tan(24 * Math.PI / 180), Math.tan(hfov) / aspect);
     const sway = fixedT != null ? 0 : 1;
     const p = [c.p[0] + mx * 0.5 * sway, c.p[1] - my * 0.25 * sway + Math.sin(time * 0.4) * 0.03 * sway, c.p[2]];
@@ -230,8 +232,8 @@ async function start() {
     let r = [-f[2], 0, f[0]]; const rl = Math.hypot(...r); r = r.map((x) => x / rl);
     const up = [r[1] * f[2] - r[2] * f[1], r[2] * f[0] - r[0] * f[2], r[0] * f[1] - r[1] * f[0]];
 
-    data.set([p[0], p[1], p[2], time, f[0], f[1], f[2], tanH, r[0], r[1], r[2], aspect, up[0], up[1], up[2], ease(power),
-      canvas.width, canvas.height, boxes.length, lines.length, T, AT.split / AT.h, AT.right / AT.h, 0]);
+    data.set([p[0], p[1], p[2], time, f[0], f[1], f[2], tanH, r[0], r[1], r[2], aspect, up[0], up[1], up[2], warmOn,
+      canvas.width, canvas.height, boxes.length, lines.length, T, AT.split / AT.h, AT.right / AT.h, 0, nOuter, glassOn, 0, 0]);
     device.queue.writeBuffer(ubuf, 0, data);
     drawAtlas();
     if (atlasDirty && !qs.has('noatlas')) { device.queue.copyExternalImageToTexture({ source: atlas }, { texture: tex }, [AT.w, AT.h]); atlasDirty = false; }
@@ -270,14 +272,18 @@ async function start() {
       acc += dt; frames++;
       if (frames >= 30) {
         const ms = acc / frames * 1000; acc = 0; frames = 0;
-        const max = Math.min(devicePixelRatio, 1.5);
-        if (ms > 24 && scale > 0.45) { scale = Math.max(0.45, scale * 0.85); resize(); }
-        else if (ms < 13 && scale < max) { scale = Math.min(max, scale * 1.1); resize(); }
+        // best：看過最短的每格時間，約等於螢幕的更新間隔。掉到 45 幀以下就降；貼著更新間隔跑就試著升，
+        // 升了又掉回來的話，下次等久一點再試
+        best = Math.min(best, ms); if (cool > 0) cool--;
+        if (ms > Math.max(Math.min(best, 16.7) * 1.3, 20) && scale > MIN) { scale = Math.max(MIN, scale * 0.85); cool = coolN; coolN = Math.min(coolN * 2, 320); resize(); }
+        else if (ms < best * 1.12 && cool === 0 && scale < SS) { scale = Math.min(SS, scale * 1.1); resize(); }
+        // 降到最低解析度還是不到 20 幀，連續三次就換成靜態版本
+        if (scale <= MIN && ms > 50) { if (++slowN >= 3) { dead = true; fallback('too slow'); } } else slowN = 0;
       }
     }
     if (!window.__ready) { window.__ready = true; document.body.classList.add('ready'); }
     if (qs.has('once')) { if (!OFF) device.queue.onSubmittedWorkDone().then(() => { window.__done = true; }); return; }
-    requestAnimationFrame(frame);
+    if (!dead) requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
 }

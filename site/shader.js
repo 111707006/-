@@ -13,6 +13,7 @@ struct U {
   camU: vec4f,     // xyz, w = power-on 0..1
   res: vec4f,      // w, h, nBoxes, nLines
   fx: vec4f,       // x = focus stop (0..4), y = atlas split v, z = atlas right v0, w = unused
+  ex: vec4f,       // x = 前段（大件）方塊數, y = 玻璃量體亮度 0..1
   boxes: array<Box, ${MAX_BOXES}>,
   lines: array<Line, ${MAX_LINES}>,
 }
@@ -33,11 +34,44 @@ fn noise(p: vec2f) -> f32 {
   return mix(mix(hash1(i), hash1(i + vec2f(1, 0)), w.x), mix(hash1(i + vec2f(0, 1)), hash1(i + vec2f(1, 1)), w.x), w.y);
 }
 
+// ---------- 椅子：距離場（只在椅子那一排的範圍內步進）----------
+const CH0 = vec3f(-5.0, 0.0, -8.15);
+const CH1 = vec3f(5.0, 1.32, -7.38);
+const OP0 = vec3f(-5.7, 0.0, -9.5);
+const OP1 = vec3f(5.7, 1.65, -8.2);
+fn sdRB(p: vec3f, b: vec3f, r: f32) -> f32 { let q = abs(p) - b + r; return length(max(q, vec3f(0.0))) + min(max(q.x, max(q.y, q.z)), 0.0) - r; }
+fn sdCap(p: vec3f, a: vec3f, b: vec3f, r: f32) -> f32 { let pa = p - a; let ba = b - a; return length(pa - ba * clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0)) - r; }
+fn chairs(pw: vec3f) -> f32 {
+  let k = clamp(round((pw.x + 4.5) / 1.8), 0.0, 5.0);
+  let p = vec3f(pw.x - (k * 1.8 - 4.5), pw.y, pw.z + 7.78);
+  var d = sdRB(p - vec3f(0.0, 0.47, 0.0), vec3f(0.23, 0.04, 0.22), 0.035);          // 座墊
+  let pb = vec3f(p.x, p.y, p.z + p.x * p.x * 0.7);                                   // 椅背往前包
+  d = min(d, sdRB(pb - vec3f(0.0, 0.86, 0.27), vec3f(0.21, 0.25, 0.022), 0.022));    // 椅背
+  d = min(d, sdRB(pb - vec3f(0.0, 1.21, 0.265), vec3f(0.12, 0.055, 0.022), 0.022));  // 頭枕
+  d = min(d, sdCap(p, vec3f(0.0, 0.45, 0.20), vec3f(0.0, 1.20, 0.30), 0.02));        // 背桿
+  d = min(d, sdCap(p, vec3f(0.0, 0.07, 0.0), vec3f(0.0, 0.44, 0.0), 0.028));         // 氣壓桿
+  let a = atan2(p.z, p.x); let r = length(p.xz);
+  let af = a - round(a / 1.2566371) * 1.2566371;                                     // 五爪椅腳
+  d = min(d, sdCap(vec3f(r * cos(af), p.y, r * sin(af)), vec3f(0.02, 0.07, 0.0), vec3f(0.30, 0.035, 0.0), 0.02));
+  let s = vec3f(abs(p.x), p.y, p.z);                                                 // 扶手
+  d = min(d, sdRB(s - vec3f(0.275, 0.69, -0.02), vec3f(0.028, 0.014, 0.15), 0.012));
+  d = min(d, sdCap(s, vec3f(0.24, 0.47, 0.08), vec3f(0.275, 0.68, 0.08), 0.014));
+  return d;
+}
+fn slab(ro: vec3f, inv: vec3f, a: vec3f, b: vec3f) -> vec2f { // 回傳 (進入, 離開)
+  let t0 = (a - ro) * inv; let t1 = (b - ro) * inv;
+  let tmn = min(t0, t1); let tmx = max(t0, t1);
+  return vec2f(max(max(tmn.x, tmn.y), tmn.z), min(min(tmx.x, tmx.y), tmx.z));
+}
+
 fn trace(ro: vec3f, rd: vec3f) -> Hit {
   var h: Hit; h.t = 1e9; h.mat = -1.0; h.par = 0.0; h.id = 0.0; h.n = vec3f(0, 1, 0);
   if (rd.y < -1e-4) { let t = -ro.y / rd.y; if (t > 0.0) { h.t = t; h.mat = 9.0; } }
   let inv = 1.0 / rd;
-  let n = i32(u.res.z);
+  // 前段是大件（牆、玻璃、櫃檯…）；後段是作業中心的小件，視線沒穿過那一區就整段跳過
+  var n = i32(u.ex.x);
+  let op = slab(ro, inv, OP0, OP1);
+  if (op.x < op.y && op.y > 0.0) { n = i32(u.res.z); }
   for (var i = 0; i < n; i++) {
     let b = u.boxes[i];
     let t0 = (b.a.xyz - ro) * inv; let t1 = (b.b.xyz - ro) * inv;
@@ -46,6 +80,22 @@ fn trace(ro: vec3f, rd: vec3f) -> Hit {
     if (tn < tf && tn > 0.002 && tn < h.t) {
       h.t = tn; h.mat = b.a.w; h.par = b.b.w; h.id = f32(i);
       h.n = -sign(rd) * step(vec3f(tn), tmin);
+    }
+  }
+  let ch = slab(ro, inv, CH0, CH1);
+  let c0 = max(ch.x, 0.002); let c1 = min(ch.y, h.t);
+  if (c0 < c1) {
+    var t = c0;
+    for (var i = 0; i < 56; i++) {
+      let d = chairs(ro + rd * t);
+      if (d < 0.0015) {
+        let q = ro + rd * t; let e = vec2f(0.002, 0.0);
+        h.t = t; h.mat = 11.0; h.par = 0.0;
+        h.n = normalize(vec3f(chairs(q + e.xyy) - chairs(q - e.xyy), chairs(q + e.yxy) - chairs(q - e.yxy), chairs(q + e.yyx) - chairs(q - e.yyx)));
+        break;
+      }
+      t += d;
+      if (t > c1) { break; }
     }
   }
   return h;
@@ -57,7 +107,7 @@ fn sky(rd: vec3f) -> vec3f {
   c += vec3f(0.30, 0.22, 0.20) * pow(1.0 - y, 14.0) * 0.5;
   // 稀疏的星
   let sp = rd.xz / max(rd.y, 0.08) * 60.0; let s = floor(sp);
-  c += vec3f(0.8) * step(0.992, hash1(s)) * smoothstep(0.30, 0.08, length(fract(sp) - 0.5)) * smoothstep(0.10, 0.30, y) * 0.7;
+  c += vec3f(0.8) * step(0.996, hash1(s)) * smoothstep(0.20, 0.05, length(fract(sp) - 0.5)) * smoothstep(0.10, 0.30, y) * 0.7;
   return c;
 }
 
@@ -84,12 +134,12 @@ fn lighting(p: vec3f, n: vec3f) -> vec3f {
   if (p.z > -0.4 || p.y > 5.1) {
     let q = clamp(p, GMIN, GMAX); let l = q - p; let d2 = dot(l, l);
     let ndl = max(dot(n, l) * inverseSqrt(d2 + 1e-4), 0.0);
-    c += COOL * on * (ndl * 0.9 + 0.1) * 5.5 / (d2 * 0.09 + 6.0);
+    c += COOL * u.ex.y * (ndl * 0.9 + 0.1) * 5.5 / (d2 * 0.09 + 6.0);
   }
   let nl = i32(u.res.w);
   for (var i = 0; i < nl; i++) {
     let L = u.lines[i];
-    var col = WARM; if (L.b.w < 0.0) { col = vec3f(0.55, 0.78, 1.0); }
+    var col = WARM; if (L.b.w < 0.0) { col = vec3f(0.78, 0.85, 0.96); }
     c += col * L.a.w * on * pulse(f32(i)) * lineLight(p, n, L.a.xyz, L.b.xyz);
   }
   // 兩面螢幕牆的溢光
@@ -161,9 +211,8 @@ fn shade(p: vec3f, h: Hit, rd: vec3f) -> vec3f {
     } else { alb = vec3f(0.03); }
   } else if (m == 1) { // 深色石材
     let suv = select(wuv, p.xz, abs(n.y) > 0.5);
-    let g = noise(suv * 2.3) * 0.5 + noise(suv * 9.0) * 0.25 + noise(suv * 37.0) * 0.1 * (1.0 - smoothstep(0.004, 0.02, fw));
-    let vein = smoothstep(0.04, 0.0, abs(noise(suv * 0.9 + 3.7) - 0.5));
-    alb = vec3f(0.050, 0.050, 0.054) * (0.62 + g) + vec3f(0.012) * vein;
+    let g = noise(suv * 1.1) * 0.14 + (noise(suv * 46.0) * 0.16 + noise(suv * 130.0) * 0.10) * (1.0 - smoothstep(0.003, 0.015, fw));
+    alb = vec3f(0.046, 0.046, 0.050) * (0.80 + g);
     if (abs(n.y) < 0.5) {
       let sx = abs(fract(suv.x / 1.15) - 0.5) * 1.15;
       alb *= 1.0 - 0.6 * smoothstep(0.566, 0.575, sx) * (1.0 - smoothstep(0.008, 0.03, fw));
@@ -179,7 +228,7 @@ fn shade(p: vec3f, h: Hit, rd: vec3f) -> vec3f {
     let breathe = 0.9 + 0.1 * sin(t * 0.7);
     let base = 0.13 + 0.62 * bands * breathe + 0.28 * flow * step(0.5, hash1(vec2f(col, 7.0)));
     let rk = 1.0 - smoothstep(0.03, 0.12, fw);
-    em = COOL * on * base * mix(0.62, 0.22 + 0.78 * rib, rk) * 2.3;
+    em = COOL * u.ex.y * base * mix(0.62, 0.22 + 0.78 * rib, rk) * 2.3;
     if (n.y < -0.5) { em = vec3f(0.0); alb = vec3f(0.02); }
     alb = vec3f(0.10);
   } else if (m == 3) { // 影片螢幕（圖集）
@@ -199,8 +248,8 @@ fn shade(p: vec3f, h: Hit, rd: vec3f) -> vec3f {
     em = (v * v * 1.15 + 0.004) * bez * on;
     alb = vec3f(0.01);
   } else if (m == 4) { // 大廳後牆（暖色石材）
-    let g = noise(wuv * 1.3) * 0.3 + noise(wuv * 7.0) * 0.2 + noise(wuv * 31.0) * 0.12 * (1.0 - smoothstep(0.004, 0.02, fw));
-    alb = vec3f(0.070, 0.071, 0.075) * (0.75 + g);
+    let g = noise(wuv * 0.8) * 0.12 + (noise(wuv * 46.0) * 0.16 + noise(wuv * 130.0) * 0.10) * (1.0 - smoothstep(0.003, 0.015, fw));
+    alb = vec3f(0.044, 0.045, 0.049) * (0.80 + g);
     let sx = abs(fract(wuv.x / 2.4) - 0.5) * 2.4;
     alb *= 1.0 - 0.55 * smoothstep(1.185, 1.2, sx);
     alb *= 1.0 - 0.35 * smoothstep(0.012, 0.0, abs(p.y - 2.5));
@@ -215,11 +264,15 @@ fn shade(p: vec3f, h: Hit, rd: vec3f) -> vec3f {
     alb = vec3f(0.01);
   } else if (m == 6) { // 黑色金屬
     alb = vec3f(0.018); spec = 0.5;
+  } else if (m == 11) { // 椅子（距離場）
+    alb = vec3f(0.020, 0.020, 0.022); spec = 0.6;
   } else if (m == 8) { // 大廳天花：深色木格柵
     if (n.y < -0.5) {
-      let f = fract(p.z / 0.14);
-      let slat = smoothstep(0.0, 0.08, f) * smoothstep(0.62, 0.54, f);
-      alb = vec3f(0.115, 0.088, 0.066) * (0.75 + 0.5 * noise(vec2f(p.x * 0.6, floor(p.z / 0.14) * 3.1))) * (0.12 + 0.88 * slat);
+      // 格柵：遠處或斜看時淡成平均值，避免摩爾紋
+      let f = fract(p.z / 0.24);
+      let far = smoothstep(0.04, 0.14, fw / max(abs(dot(rd, n)), 0.08));
+      let slat = mix(smoothstep(0.0, 0.06, f) * smoothstep(0.66, 0.60, f), 0.62, far);
+      alb = vec3f(0.095, 0.074, 0.056) * (0.75 + 0.5 * noise(vec2f(p.x * 0.6, floor(p.z / 0.24) * 3.1)) * (1.0 - far)) * (0.12 + 0.88 * slat);
     } else { alb = vec3f(0.018); spec = 0.5; }
   } else if (m == 7) { // 接待服務螢幕：呼吸的光環
     let b = u.boxes[i32(h.par + 0.5)];
@@ -234,15 +287,18 @@ fn shade(p: vec3f, h: Hit, rd: vec3f) -> vec3f {
     alb = vec3f(0.01);
   }
   // 石材與金屬的邊緣做一點倒角：靠近方塊邊線時把法線往相鄰的面偏
-  var nb = n;
+  var nb = n; var edge = 0.0;
+  if (m == 11) { edge = 0.5; }
   if (m == 1 || m == 6) {
     let bx = u.boxes[i32(h.id + 0.5)];
     let da = p - bx.a.xyz; let db = bx.b.xyz - p;
     let r = max(0.014, fw * 1.4);
     let w = (1.0 - clamp(min(da, db) / r, vec3f(0.0), vec3f(1.0))) * (1.0 - abs(n));
     nb = normalize(n + sign(da - db) * w * w * 1.2);
+    edge = max(w.x, max(w.y, w.z));
   }
-  var c = alb * lighting(p, nb) + em;
+  let Lt = lighting(p, nb);
+  var c = alb * Lt + em + Lt * 0.035 * edge; // 邊緣多一點受光，當成倒角的高光
   if (spec > 0.0) { // 石材與金屬帶一點天空與玻璃量體的反光
     let r = reflect(rd, n);
     c += spec * 0.06 * sky(vec3f(r.x, abs(r.y), r.z)) * pow(1.0 - max(dot(-rd, n), 0.0), 3.0);
@@ -269,7 +325,7 @@ fn ground(p: vec3f, rd: vec3f, t: f32) -> vec4f { // rgb = 顏色, a = 反射率
       let a = L.a.xz; let ab = L.b.xz - a;
       let d = length(p.xz - (a + ab * clamp(dot(p.xz - a, ab) / dot(ab, ab), 0.0, 1.0)));
       let pw = pulse(f32(i)) * on;
-      var col = WARM; if (L.b.w < 0.0) { col = vec3f(0.55, 0.78, 1.0); }
+      var col = WARM; if (L.b.w < 0.0) { col = vec3f(0.78, 0.85, 0.96); }
       c += col * pw * (smoothstep(0.07 + fw, 0.035, d) * 2.6 + alb * 12.0 * exp(-d * 2.0) + alb * 2.0 / (1.0 + d * d * 0.5));
     }
   }
@@ -309,7 +365,7 @@ fn halo(ro: vec3f, rd: vec3f, tmax: f32, a: vec3f, b: vec3f) -> f32 {
   if (h.mat < 0.0) { col = sky(rd); }
   else {
     let p = ro + rd * h.t;
-    if (h.mat > 8.5) {
+    if (h.mat > 8.5 && h.mat < 9.5) {
       let g = ground(p, rd, h.t);
       col = g.rgb;
       // 拋光地面：一次反射
@@ -319,7 +375,7 @@ fn halo(ro: vec3f, rd: vec3f, tmax: f32, a: vec3f, b: vec3f) -> f32 {
       let h2 = trace(p + vec3f(0, 0.004, 0), rr);
       var rc = vec3f(0.0);
       if (h2.mat < 0.0) { rc = sky(rr) * 0.6; }
-      else if (h2.mat > 8.5) { rc = vec3f(0.0); }
+      else if (h2.mat > 8.5 && h2.mat < 9.5) { rc = vec3f(0.0); }
       else { rc = shade(p + rr * h2.t, h2, rr); }
       let fres = 0.05 + 0.95 * pow(1.0 - max(-rd.y, 0.0), 4.0);
       col += rc * g.a * (0.11 + 0.62 * fres) * exp(-h2.t * 0.012);
@@ -335,7 +391,7 @@ fn halo(ro: vec3f, rd: vec3f, tmax: f32, a: vec3f, b: vec3f) -> f32 {
   let nl = i32(u.res.w);
   for (var i = 0; i < nl; i++) {
     let L = u.lines[i];
-    var lc = WARM; if (L.b.w < 0.0) { lc = vec3f(0.55, 0.78, 1.0); }
+    var lc = WARM; if (L.b.w < 0.0) { lc = vec3f(0.78, 0.85, 0.96); }
     col += lc * halo(ro, rd, h.t, L.a.xyz, L.b.xyz) * abs(L.b.w) * on * pulse(f32(i));
   }
   // 光暈：玻璃量體周圍的霧光
@@ -343,7 +399,7 @@ fn halo(ro: vec3f, rd: vec3f, tmax: f32, a: vec3f, b: vec3f) -> f32 {
     let c = (GMIN + GMAX) * 0.5; let tc = max(dot(c - ro, rd), 0.0);
     let q = ro + rd * min(tc, h.t);
     let d = max(abs(q - c) - (GMAX - GMIN) * 0.5, vec3f(0.0));
-    col += COOL * on * 0.05 * exp(-length(d) * 0.30) * (0.9 + 0.1 * sin(t * 0.7));
+    col += COOL * u.ex.y * 0.05 * exp(-length(d) * 0.30) * (0.9 + 0.1 * sin(t * 0.7));
   }
 
   // 色調映射、暗角、顆粒
