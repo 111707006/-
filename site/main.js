@@ -96,11 +96,11 @@ const settle = (T) => { const s = Math.min(Math.floor(T), STOPS - 1), f = T - s;
 const AT = { w: 1024, h: 1136, split: 540, right: 560 };
 const atlas = document.createElement('canvas'); atlas.width = AT.w; atlas.height = AT.h;
 const actx = atlas.getContext('2d');
-// 左牆六格＝我們為客戶製作的六種影片，一格一種（對應依檔名推測，待負責人確認）。只標影片類型，不標客戶。
-// 名稱一律帶「影片」，免得被讀成 FG STUDIO 自己的網站選單（品牌介紹、產品說明…）
+// 左牆六格＝六種影片需求，一格一支我們為客戶製作的作品（對應依檔名推測，待負責人確認）。只標需求，不標客戶。
+// 名稱一律帶「需求」，免得被讀成 FG STUDIO 自己的網站選單（品牌介紹、產品說明…）
 const SCN = [
-  ['sleepygulls-brand-film', '品牌介紹影片', 'BRAND INTRO VIDEOS'], ['ys-01-new-device', '產品說明影片', 'PRODUCT EXPLAINERS'], ['sg-04-mattress-sagging', '客服解答影片', 'SUPPORT & FAQ VIDEOS'],
-  ['ueis-milk-protein-lab', '教育訓練影片', 'TRAINING VIDEOS'], ['ueis-thanksgiving-trailer-2026', '校園宣導影片', 'CAMPUS & EVENT VIDEOS'], ['sg-02-fabric-pattern', '社群宣傳影片', 'SOCIAL VIDEOS'],
+  ['sleepygulls-brand-film', '品牌形象需求', 'BRAND IMAGE'], ['ys-01-new-device', '產品說明需求', 'PRODUCT EXPLAINERS'], ['sg-04-mattress-sagging', '客戶服務需求', 'CUSTOMER SUPPORT'],
+  ['ueis-milk-protein-lab', '教育訓練需求', 'TRAINING'], ['ueis-thanksgiving-trailer-2026', '校園活動需求', 'CAMPUS EVENTS'], ['sg-02-fabric-pattern', '社群短影音需求', 'SHORT-FORM SOCIAL'],
 ];
 const WALL = SCN.map((s) => s[0]);
 const slots = WALL.map((id, k) => ({ id, x: (k % 3) * (AT.w / 3), y: Math.floor(k / 3) * (AT.split / 2), w: AT.w / 3, h: AT.split / 2 }));
@@ -133,7 +133,7 @@ const dots = [...document.querySelectorAll('.rail .dot')];
 const TW = 11 / 3, TH = 2.9; // 一格的寬、高（公尺）
 let focus = -1, fTile = 0, fK = 0; // fK：鏡頭走向那一格的進度
 const playEl = $('#play'), playV = playEl.querySelector('video');
-const tiles = SCN.map(([id, zh, en], k) => {
+const tiles = SCN.map(([id], k) => {
   const c = k % 3, r = Math.floor(k / 3), el = document.createElement('button');
   el.className = 'wl tile'; el.dataset.o = `-9.86,${7.3 - r * TH},${21.5 - c * TW}`; el.dataset.r = '0,0,-1'; el.dataset.s = '0.005'; el.dataset.stops = '2'; el.dataset.seq = k + 1;
   el.addEventListener('click', (e) => { e.stopPropagation(); openTile(k); });
