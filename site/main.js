@@ -98,11 +98,11 @@ const atlas = document.createElement('canvas'); atlas.width = AT.w; atlas.height
 const actx = atlas.getContext('2d');
 // 左牆六格＝六種影片需求，一格一支我們為客戶製作的作品（對應依檔名推測，待負責人確認）。只標需求，不標客戶。
 // 「需求」寫在牆上的大標題與站名，格子只寫名稱；每格左上角標「客戶作品」，免得被讀成 FG STUDIO 自己的網站選單
-const SCN = [
-  ['sleepygulls-brand-film', '品牌介紹', 'BRAND INTRODUCTION'], ['ys-01-new-device', '產品說明', 'PRODUCT EXPLAINER'], ['sg-04-mattress-sagging', '客服與常見問題', 'SUPPORT & FAQ'],
-  ['ueis-milk-protein-lab', '教育訓練', 'TRAINING'], ['ueis-thanksgiving-trailer-2026', '校園政策與活動', 'CAMPUS POLICY & EVENTS'], ['sg-02-fabric-pattern', '社群短影音', 'SHORT-FORM SOCIAL'],
+const SCN = [ // 第一項是這一格的影片（可以不只一支；牆上播第一支的預覽，播放器裡用 ‹ › 換）
+  [['sleepygulls-brand-film'], '品牌介紹', 'BRAND INTRODUCTION'], [['sg-01-waterproof-protector'], '產品說明', 'PRODUCT EXPLAINER'], [['sg-04-mattress-sagging'], '客服與常見問題', 'SUPPORT & FAQ'],
+  [['ys-01-new-device', 'ys-04-tuning-like-violin'], '教育訓練', 'TRAINING'], [['ueis-thanksgiving-trailer-2026', 'ueis-milk-protein-lab'], '校園政策與活動', 'CAMPUS POLICY & EVENTS'], [['sg-03-latex-topper'], '社群短影音', 'SHORT-FORM SOCIAL'],
 ];
-const WALL = SCN.map((s) => s[0]);
+const WALL = SCN.map((s) => s[0][0]);
 const slots = WALL.map((id, k) => ({ id, x: (k % 3) * (AT.w / 3), y: Math.floor(k / 3) * (AT.split / 2), w: AT.w / 3, h: AT.split / 2 }));
 slots.push({ id: 'welcome-to-fg-gvs', x: 0, y: AT.right, w: AT.w, h: AT.h - AT.right });
 function cover(src, sw, sh, s) {
@@ -133,14 +133,15 @@ const dots = [...document.querySelectorAll('.rail .dot')];
 const TW = 11 / 3, TH = 2.9; // 一格的寬、高（公尺）
 let focus = -1, fTile = 0, fK = 0; // fK：鏡頭走向那一格的進度
 const playEl = $('#play'), playV = playEl.querySelector('video');
-const tiles = SCN.map(([id], k) => {
+const vidSize = (id) => (/^(sg|ys)-/.test(id) ? [TH * 9 / 16, TH] : [TW, TW * 9 / 16]);
+const tiles = SCN.map(([ids], k) => {
   const c = k % 3, r = Math.floor(k / 3), el = document.createElement('button');
   el.className = 'wl tile'; el.dataset.o = `-9.86,${7.3 - r * TH},${21.5 - c * TW}`; el.dataset.r = '0,0,-1'; el.dataset.s = '0.005'; el.dataset.stops = '2'; el.dataset.seq = k + 1;
   el.addEventListener('click', (e) => { e.stopPropagation(); openTile(k); });
   document.body.append(el);
   // 播放範圍：影片在這一格裡不裁切時佔的大小（橫式貼齊格寬，直式貼齊格高）
-  const vert = /^(sg|ys)-/.test(id), w = vert ? TH * 9 / 16 : TW, h = vert ? TH : TW * 9 / 16;
-  return { el, id, w, h, c: [-9.87, 7.3 - (r + 0.5) * TH, 21.5 - (c + 0.5) * TW] };
+  const [w, h] = vidSize(ids[0]);
+  return { el, ids, w, h, c: [-9.87, 7.3 - (r + 0.5) * TH, 21.5 - (c + 0.5) * TW] };
 });
 // 玻璃板上的內容（index.html 的 #g0–#g2）：原點在玻璃正面的左上角，寬固定 1000px
 const glassEls = GL.map((g, k) => {
@@ -154,10 +155,23 @@ const labels = [...document.querySelectorAll('.wl')].map((el) => ({
   seq: +(el.dataset.seq || 0), tile: el.classList.contains('tile'), play: el === playEl,
 }));
 const playL = labels.find((L) => L.play);
-function openTile(k) {
-  const t = tiles[k]; focus = fTile = k;
+// 一格有好幾支影片時：播放器左上角顯示「1 / 2」與 ‹ ›，一支播完自動接下一支
+const swEl = playEl.querySelector('.sw'), swN = swEl.querySelector('span');
+let fVid = 0;
+function loadVid(n) {
+  const t = tiles[fTile]; fVid = (n + t.ids.length) % t.ids.length; const id = t.ids[fVid];
+  [t.w, t.h] = vidSize(id);
   playL.o = [-9.86, t.c[1] + t.h / 2, t.c[2] + t.w / 2]; playEl.style.width = `${t.w / playL.s}px`; playEl.style.height = `${t.h / playL.s}px`;
-  playV.poster = `${MEDIA}posters/${tiles[k].id}.jpg`; playV.src = `${MEDIA}web/${tiles[k].id}.mp4`;
+  playV.poster = `${MEDIA}posters/${id}.jpg`; playV.src = `${MEDIA}web/${id}.mp4`;
+  swEl.hidden = t.ids.length < 2; swN.textContent = `${fVid + 1} / ${t.ids.length}`;
+}
+swEl.addEventListener('click', (e) => {
+  e.stopPropagation(); const b = e.target.closest('button'); if (!b) return;
+  loadVid(fVid + +b.dataset.d); playV.play().catch(() => {});
+});
+playV.addEventListener('ended', () => { if (focus >= 0 && fVid < tiles[fTile].ids.length - 1) { loadVid(fVid + 1); playV.play().catch(() => {}); } });
+function openTile(k) {
+  focus = fTile = k; loadVid(0);
   if (!qs.has('focus')) playV.play().catch(() => {});
   document.documentElement.classList.add('lock');
 }
