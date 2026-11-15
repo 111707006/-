@@ -384,7 +384,8 @@ async function start() {
   const setQ = () => { window.__q = document.body.dataset.q = hq ? 'high' : 'low'; }; setQ();
   // 依幀時間調整解析度
   // 解析度倍率：高畫質最高 1.5（一倍螢幕上等於超取樣，當成抗鋸齒），低畫質 1.25；太慢就往下降
-  const MIN = 0.45, cap = () => (hq ? 1.5 : 1.25);
+  // 手機螢幕是 2～3 倍像素，1.25 倍會糊，所以手機上限放到 2；而且寧可 30 幀也要清楚，最低不降到 0.9 以下
+  const MIN = mobile ? 0.9 : 0.45, cap = () => (mobile ? Math.min(devicePixelRatio, 2) : hq ? 1.5 : 1.25);
   let scale = qs.has('scale') ? +qs.get('scale') : Math.min(devicePixelRatio, cap()), acc = 0, frames = 0, best = 1e9, cool = 0, coolN = 20, slowN = 0, dead = false;
   const fixedScale = qs.has('scale');
   let W = 0, H = 0, longN = 0;
@@ -531,13 +532,14 @@ async function start() {
         // best：看過最短的每格時間，約等於螢幕的更新間隔。掉到 45 幀以下就降；貼著更新間隔跑就試著升，
         // 升了又掉回來的話，下次等久一點再試
         best = Math.min(best, ms); if (cool > 0) cool--;
-        const slow = ms > Math.max(Math.min(best, 16.7) * 1.3, 20);
+        // 手機：30 幀以上就不算慢（不然常常 40 幾幀就一路降解析度）
+        const slow = mobile ? ms > 36 : ms > Math.max(Math.min(best, 16.7) * 1.3, 20);
         slowHi = slow && hq ? slowHi + 1 : 0;
         // 高畫質已經降到一倍以下還是慢，或連兩次不到 30 幀：換成低畫質，解析度留著
         if (slow && hq && !fixedQ && (scale <= 1.0 || (ms > 33 && slowHi >= 2))) { hq = false; setQ(); cool = 4; }
         else if (slow && scale > MIN) { scale = Math.max(MIN, scale * 0.85); cool = coolN; coolN = Math.min(coolN * 2, 320); resize(); }
         // 升回來的條件：貼著螢幕更新率，或至少有 74 幀。只看前者的話，144 Hz 的螢幕上跑 75 幀永遠升不回來，畫面就卡在最低解析度
-        else if (ms < Math.max(best * 1.12, 13.5) && cool === 0 && scale < cap()) { scale = Math.min(cap(), scale * 1.1); resize(); }
+        else if ((mobile ? ms < 26 : ms < Math.max(best * 1.12, 13.5)) && cool === 0 && scale < cap()) { scale = Math.min(cap(), scale * 1.1); resize(); }
         // 降到最低解析度還是不到 20 幀，連續三次就換成靜態版本
         if (scale <= MIN && ms > 50) { if (++slowN >= 3) { dead = true; fallback('too slow'); } } else slowN = 0;
       }
