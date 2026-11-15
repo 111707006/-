@@ -96,12 +96,13 @@ const settle = (T) => { const s = Math.min(Math.floor(T), STOPS - 1), f = T - s;
 const AT = { w: 1024, h: 1136, split: 540, right: 560 };
 const atlas = document.createElement('canvas'); atlas.width = AT.w; atlas.height = AT.h;
 const actx = atlas.getContext('2d');
-// 左牆六格＝六種溝通情境，一格一種（對應依檔名推測，待負責人確認）。只標情境，不標客戶
-const SCN = [
-  ['sleepygulls-brand-film', '品牌介紹', 'BRAND INTRODUCTION'], ['ys-01-new-device', '產品說明', 'PRODUCT EXPLAINER'], ['sg-04-mattress-sagging', '客服與常見問題', 'SUPPORT & FAQ'],
-  ['ueis-milk-protein-lab', '教育訓練', 'TRAINING'], ['ueis-thanksgiving-trailer-2026', '校園政策與活動', 'CAMPUS POLICY & EVENTS'], ['sg-02-fabric-pattern', '社群宣傳', 'SOCIAL CONTENT'],
+// 左牆六格＝六種影片需求，一格一支我們為客戶製作的作品（對應依檔名推測，待負責人確認）。只標需求，不標客戶。
+// 「需求」寫在牆上的大標題與站名，格子只寫名稱；每格左上角標「客戶作品」，免得被讀成 FG STUDIO 自己的網站選單
+const SCN = [ // 第一項是這一格的影片（可以不只一支；牆上播第一支的預覽，播放器裡用 ‹ › 換）
+  [['sleepygulls-brand-film'], '品牌介紹', 'BRAND INTRODUCTION'], [['sg-01-waterproof-protector'], '產品說明', 'PRODUCT EXPLAINER'], [['sg-04-mattress-sagging'], '客服與常見問題', 'SUPPORT & FAQ'],
+  [['ys-01-new-device', 'ys-04-tuning-like-violin'], '教育訓練', 'TRAINING'], [['ueis-thanksgiving-trailer-2026', 'ueis-milk-protein-lab'], '校園政策與活動', 'CAMPUS POLICY & EVENTS'], [['sg-03-latex-topper'], '社群短影音', 'SHORT-FORM SOCIAL'],
 ];
-const WALL = SCN.map((s) => s[0]);
+const WALL = SCN.map((s) => s[0][0]);
 const slots = WALL.map((id, k) => ({ id, x: (k % 3) * (AT.w / 3), y: Math.floor(k / 3) * (AT.split / 2), w: AT.w / 3, h: AT.split / 2 }));
 slots.push({ id: 'welcome-to-fg-gvs', x: 0, y: AT.right, w: AT.w, h: AT.h - AT.right });
 function cover(src, sw, sh, s) {
@@ -132,14 +133,15 @@ const dots = [...document.querySelectorAll('.rail .dot')];
 const TW = 11 / 3, TH = 2.9; // 一格的寬、高（公尺）
 let focus = -1, fTile = 0, fK = 0; // fK：鏡頭走向那一格的進度
 const playEl = $('#play'), playV = playEl.querySelector('video');
-const tiles = SCN.map(([id, zh, en], k) => {
+const vidSize = (id) => (/^(sg|ys)-/.test(id) ? [TH * 9 / 16, TH] : [TW, TW * 9 / 16]);
+const tiles = SCN.map(([ids], k) => {
   const c = k % 3, r = Math.floor(k / 3), el = document.createElement('button');
   el.className = 'wl tile'; el.dataset.o = `-9.86,${7.3 - r * TH},${21.5 - c * TW}`; el.dataset.r = '0,0,-1'; el.dataset.s = '0.005'; el.dataset.stops = '2'; el.dataset.seq = k + 1;
   el.addEventListener('click', (e) => { e.stopPropagation(); openTile(k); });
   document.body.append(el);
   // 播放範圍：影片在這一格裡不裁切時佔的大小（橫式貼齊格寬，直式貼齊格高）
-  const vert = /^(sg|ys)-/.test(id), w = vert ? TH * 9 / 16 : TW, h = vert ? TH : TW * 9 / 16;
-  return { el, id, w, h, c: [-9.87, 7.3 - (r + 0.5) * TH, 21.5 - (c + 0.5) * TW] };
+  const [w, h] = vidSize(ids[0]);
+  return { el, ids, w, h, c: [-9.87, 7.3 - (r + 0.5) * TH, 21.5 - (c + 0.5) * TW] };
 });
 // 玻璃板上的內容（index.html 的 #g0–#g2）：原點在玻璃正面的左上角，寬固定 1000px
 const glassEls = GL.map((g, k) => {
@@ -153,10 +155,23 @@ const labels = [...document.querySelectorAll('.wl')].map((el) => ({
   seq: +(el.dataset.seq || 0), tile: el.classList.contains('tile'), play: el === playEl,
 }));
 const playL = labels.find((L) => L.play);
-function openTile(k) {
-  const t = tiles[k]; focus = fTile = k;
+// 一格有好幾支影片時：播放器左上角顯示「1 / 2」與 ‹ ›，一支播完自動接下一支
+const swEl = playEl.querySelector('.sw'), swN = swEl.querySelector('span');
+let fVid = 0;
+function loadVid(n) {
+  const t = tiles[fTile]; fVid = (n + t.ids.length) % t.ids.length; const id = t.ids[fVid];
+  [t.w, t.h] = vidSize(id);
   playL.o = [-9.86, t.c[1] + t.h / 2, t.c[2] + t.w / 2]; playEl.style.width = `${t.w / playL.s}px`; playEl.style.height = `${t.h / playL.s}px`;
-  playV.poster = `${MEDIA}posters/${tiles[k].id}.jpg`; playV.src = `${MEDIA}web/${tiles[k].id}.mp4`;
+  playV.poster = `${MEDIA}posters/${id}.jpg`; playV.src = `${MEDIA}web/${id}.mp4`;
+  swEl.hidden = t.ids.length < 2; swN.textContent = `${fVid + 1} / ${t.ids.length}`;
+}
+swEl.addEventListener('click', (e) => {
+  e.stopPropagation(); const b = e.target.closest('button'); if (!b) return;
+  loadVid(fVid + +b.dataset.d); playV.play().catch(() => {});
+});
+playV.addEventListener('ended', () => { if (focus >= 0 && fVid < tiles[fTile].ids.length - 1) { loadVid(fVid + 1); playV.play().catch(() => {}); } });
+function openTile(k) {
+  focus = fTile = k; loadVid(0);
   if (!qs.has('focus')) playV.play().catch(() => {});
   document.documentElement.classList.add('lock');
 }
@@ -245,7 +260,7 @@ const NOTE = { // 靜態版本的提示：一般（不支援）、跑太慢、�
   'too slow': ['此裝置跑 3D 場景太吃力，顯示靜態版本', 'The 3D scene is too heavy for this device. Showing the static version.'],
   'device lost': ['顯示裝置中斷，顯示靜態版本（重新整理可再試一次）', 'Graphics device lost. Showing the static version (reload to try again).'],
 };
-const EN_TITLE = "FG STUDIO | GVS Brand Video Production & Long-Term Short-Form Video", EN_DESC = "GVS (Global Video Service) by FG STUDIO: long-term video production for brands, companies and schools. Brand introductions, product explainers, support & FAQ, training, campus policy & events, social content. From NT$2,000 per video; VIP covers 15 videos a month.";
+const EN_TITLE = "FG STUDIO | GVS Brand Video Production & Long-Term Short-Form Video", EN_DESC = "GVS (Global Video Service) by FG STUDIO: long-term video production for brands, companies and schools. Brand introductions, product explainers, support & FAQ, training, campus policy & events, short-form social. From NT$2,000 per video; VIP covers 15 videos a month.";
 const metaEl = (sel) => document.querySelector(sel);
 const META = [[document, 'title', document.title, EN_TITLE], ...['meta[name=description]', 'meta[property="og:description"]', 'meta[name="twitter:description"]'].map((s) => [metaEl(s), 'content', metaEl(s)?.content, EN_DESC]),
   ...['meta[property="og:title"]', 'meta[name="twitter:title"]'].map((s) => [metaEl(s), 'content', metaEl(s)?.content, EN_TITLE])];
@@ -258,8 +273,8 @@ function setLang(l) {
   i18n.forEach((x) => { x.el.innerHTML = en ? x.en : x.zh; });
   i18nLabel.forEach((x) => x.el.setAttribute('aria-label', en ? x.en : x.zh));
   SCN.forEach(([, zh, e2], k) => {
-    tiles[k].el.setAttribute('aria-label', en ? `Play example: ${titleCase(e2)}` : `播放範例：${zh}`);
-    tiles[k].el.innerHTML = `<span class="cap"><b>0${k + 1}</b><span>${en ? e2 : zh}</span><i>${en ? '' : e2}</i></span>`;
+    tiles[k].el.setAttribute('aria-label', en ? `Play client work: ${titleCase(e2)}` : `播放客戶作品：${zh}`);
+    tiles[k].el.innerHTML = `<span class="cap"><b>${en ? 'CLIENT WORK' : '客戶作品'} 0${k + 1}</b><span>${en ? e2 : zh}</span><i>${en ? '' : e2}</i></span>`;
   });
   pickMenu.innerHTML = SCN.map(([, zh, e2], k) => `<button data-k="${k}"><b>0${k + 1}</b>${en ? titleCase(e2).replace('&', '&amp;') : zh}</button>`).join('');
   $('.note').textContent = (NOTE[noteMsg] || NOTE[''])[en ? 1 : 0];
@@ -277,17 +292,29 @@ addEventListener('keydown', (e) => {
 
 // 形象影片燈箱
 const lb = $('#lightbox'), lbv = $('#lightbox video');
-document.querySelectorAll('[data-film]').forEach((b) => b.addEventListener('click', () => { lbv.src = `${MEDIA}${b.dataset.film}`; lb.hidden = false; lbv.play().catch(() => {}); }));
+const openFilm = (path) => { lbv.src = `${MEDIA}${path}`; lb.hidden = false; lbv.play().catch(() => {}); };
+document.querySelectorAll('[data-film]').forEach((b) => b.addEventListener('click', () => openFilm(b.dataset.film)));
 const closeLb = () => { lb.hidden = true; lbv.pause(); lbv.removeAttribute('src'); lbv.load(); };
 lb.addEventListener('click', (e) => { if (e.target === lb || e.target.closest('.x')) closeLb(); });
 addEventListener('keydown', (e) => { if (e.key === 'Escape' && !lb.hidden) closeLb(); });
+
+// 名片：打開先看到 logo 面，接著自動翻到聯絡資訊；點名片再翻
+const cardEl = $('#card'), flipEl = cardEl.querySelector('.flip');
+let cardT = 0;
+$('#cardBtn').addEventListener('click', (e) => { e.stopPropagation(); flipEl.classList.remove('on'); cardEl.hidden = false; clearTimeout(cardT); cardT = setTimeout(() => flipEl.classList.add('on'), 650); });
+const closeCard = () => { clearTimeout(cardT); cardEl.hidden = true; };
+flipEl.addEventListener('click', () => { clearTimeout(cardT); flipEl.classList.toggle('on'); });
+cardEl.addEventListener('click', (e) => { if (e.target === cardEl || e.target.closest('.x')) closeCard(); });
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && !cardEl.hidden) closeCard(); });
 
 let mx = 0, my = 0;
 addEventListener('pointermove', (e) => { mx = e.clientX / innerWidth - 0.5; my = e.clientY / innerHeight - 0.5; });
 
 // ---------- 點場景裡的東西就走過去 ----------
 // 右牆螢幕 → 形象影片那一站、左牆螢幕 → 螢幕牆、大廳開口（櫃檯）→ 接待櫃檯。
+// 人已經在作業中心時，點任何一座工作站（螢幕、長桌）＝播放作業中心的影片（pick 回傳 FILM）。
 // 從鏡頭往點的位置打一條線，找最先碰到的方塊（被牆擋住的就點不到）；已經在那一站就不動
+const FILM = 99, OPS_FILM = 'videos/GVS_Operations_30s_v2.mp4';
 let camS = null; // frame() 每一格記下當下的鏡頭
 function pick(cx, cy) {
   if (!camS || view || focus >= 0) return -1;
@@ -306,11 +333,12 @@ function pick(cx, cy) {
   // 大廳裡面（櫃檯、後牆、天花、作業中心）從遠處看很小，整個開口都算櫃檯那一站；人已經在櫃檯時，點後面的工作站才是去作業中心
   const cur = Math.round(scrollT()), m = hit < 0 ? -1 : boxes[hit][3], lobby = hit === B_DESK || m === 4 || m === 8 || hit >= nOuter;
   const stop = hit === B_RIGHT ? 1 : hit === B_LEFT ? 2 : lobby ? (cur === 4 && hit >= nOuter ? 3 : 4) : -1;
+  if (cur === 3 && hit >= nOuter) return FILM;
   return stop === cur ? -1 : stop;
 }
-const free = (e) => !e.target.closest('button, a, input, video, .glass, #vbar, #lightbox');
+const free = (e) => !e.target.closest('button, a, input, video, .glass, #vbar, #lightbox, #card');
 canvas.addEventListener('click', () => {}); // iOS Safari：元素自己沒有 click 監聽的話，點它不會送出 click，下面掛在 window 上的就收不到
-addEventListener('click', (e) => { if (!free(e)) return; const s = pick(e.clientX, e.clientY); if (s >= 0) fly(s); });
+addEventListener('click', (e) => { if (!free(e)) return; const s = pick(e.clientX, e.clientY); if (s === FILM) openFilm(OPS_FILM); else if (s >= 0) fly(s); });
 addEventListener('pointermove', (e) => { document.body.classList.toggle('pick', e.pointerType === 'mouse' && free(e) && pick(e.clientX, e.clientY) >= 0); });
 
 let introK = 1; // 開場鏡頭的進度：0 最遠，1 就定位
