@@ -369,7 +369,7 @@ fn tri(p: vec3f, n: vec3f, s: f32) -> TP {
     gloss = .5 * (1. - silt) * (1. - cr); bump = .06 + .3 * silt + .5 * cr + .6 * shell;
     emi = alb * vec3f(.09, .19, .22); // 補一點環境光：正面背著太陽，不補的話整台是黑的
     // 內框（aux = -1）被螢幕照亮
-    if (ac < -.9) { alb = vec3f(.05, .05, .055); emi = vec3f(.16, .25, .34) * (.8 + .2 * sin(g.cam.w * .9)); bump = .1; gloss = .3; }
+    if (ac < -.9) { alb = vec3f(.035, .035, .04); emi = vec3f(.035, .055, .075) * (.8 + .2 * sin(g.cam.w * .9)); bump = .1; gloss = .5; }
   } else {
     let hue = fract(sd * 5.73);
     alb = mix(vec3f(.80, .08, .10), vec3f(.90, .22, .40), fract(hue * 4.));
@@ -820,7 +820,10 @@ fn quad(i: u32) -> vec2f { return vec2f(f32(i & 1u), f32(i >> 1u)) * 2. - 1.; }
   // 桶狀彎曲：畫面中央鼓起來，四角往內收
   let r2 = dot(i.uv, i.uv);
   let c = i.uv * (1. + .045 * r2);
-  let ins = ss(1., .965, abs(c.x)) * ss(1., .955, abs(c.y));
+  // 映像管的圓角：圓角矩形以外是深色的玻璃邊，不發光。圓角半徑是半高的 0.16（template.html 的 #ts 用同一個值）
+  let rq = abs(c) * vec2f(i.e.y, 1.) - (vec2f(i.e.y, 1.) - .16);
+  let rd = length(max(rq, vec2f(0.))) + min(max(rq.x, rq.y), 0.) - .16;
+  let ins = ss(0., -.03, rd);
   // 掃描線與紅綠藍直條紋；遠看時條紋比像素還細，就淡出成平均值，免得閃爍
   let ly = c.y * 120.; let lx = c.x * 150.;
   let fy = ss(.6, .15, fwidth(ly)); let fx = ss(.6, .15, fwidth(lx));
@@ -841,7 +844,7 @@ fn quad(i: u32) -> vec2f { return vec2f(f32(i & 1u), f32(i >> 1u)) * 2. - 1.; }
   let breathe = 1. + .05 * sin(t * .9) + .012 * sin(t * 13.);
   var e = (col * 1.1 + vec3f(.012, .017, .024)) * scan * msk * vig * breathe * ins * i.e.x;
   // 指到時螢幕邊緣亮起金色
-  e += vec3f(1., .70, .18) * (1. - ins) * i.d.z * 4.;
+  e += vec3f(1., .70, .18) * ss(-.1, -.05, rd) * ins * i.d.z * 4.;
   return fin(fog(e, i.wp, zone(i.wp)));
 }
 // 螢幕前方的光暈：螢幕的光在水裡散開

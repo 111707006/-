@@ -84,7 +84,7 @@ let wasLocked = false, bootTimer = 0, channel = 0, rectW = 0, rectH = 0;
 function activate(i) { if (i === 0) enterFront(); }
 // 鏡頭停在螢幕正前方：螢幕接近佔滿畫面，外框仍看得到。每格重算，視窗大小改變也對得上
 function frontPose() {
-  const asp = W / H, d = max(COMP.hh * 1.32 / TANH, COMP.hw * 1.22 / (TANH * asp));
+  const asp = W / H, d = max(COMP.hh * 1.5 / TANH, COMP.hw * 1.32 / (TANH * asp));
   F[CX] = COMP.sx + COMP.nx * d; F[CY] = COMP.sy + COMP.ny * d; F[CZ] = COMP.sz + COMP.nz * d; F[YAW] = atan2(-COMP.nx, COMP.nz); F[PIT] = -TILT;
   F[VX] = F[VY] = F[VZ] = 0;
   // HTML 播放器對齊場景裡螢幕的四個角：鏡頭沿著螢幕的法線正對它，所以四個角投影後是一個置中的矩形
