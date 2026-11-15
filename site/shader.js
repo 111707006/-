@@ -16,7 +16,7 @@ struct U {
   res: vec4f,      // w, h, nBoxes, nLines
   fx: vec4f,       // x = focus stop (0..4), y = atlas split v, z = atlas right v0, w = unused
   ex: vec4f,       // x = 前段（大件）方塊數, y = 玻璃量體亮度 0..1, z = 畫質（1 高、0 低）
-  misc: vec4f,     // x = 1 表示正在畫地面倒影（場景上下顛倒）
+  misc: vec4f,     // x = 1 表示正在畫地面倒影（場景上下顛倒）, y = 方案玻璃升起 0..1
   boxes: array<Box, ${MAX_BOXES}>,
   lines: array<Line, ${MAX_LINES}>,
 }
@@ -394,10 +394,17 @@ struct VO {
   @location(2) @interpolate(flat) m: vec3f,     // 材質、par、方塊編號
 }
 @vertex fn vsBox(@location(0) pos: vec3f, @location(1) n: vec3f, @location(2) m: vec3f) -> VO {
-  var o: VO; o.wp = pos; o.n = n; o.m = m;
-  var pv = pos; if (u.misc.x > 0.5) { pv.y = -pv.y; } // 倒影：鏡頭看到的是上下顛倒的場景
+  var o: VO; o.n = n; o.m = m;
+  var pw = pos; var hide = false;
+  if (m.x > 11.5) { // 玻璃板：平常沉在地面裡，打開才升起（VIP 先、兩側後）
+    let base = 0.02; let k = smoothstep(0.0, 1.0, u.misc.y * 1.5 - abs(m.y - 1.0) * 0.5);
+    pw.y = base + (pos.y - base) * k; hide = k < 0.003;
+  }
+  o.wp = pw;
+  var pv = pw; if (u.misc.x > 0.5) { pv.y = -pv.y; } // 倒影：鏡頭看到的是上下顛倒的場景
   let d = pv - u.camPos.xyz; let z = dot(d, u.camF.xyz);
   o.pos = vec4f(dot(d, u.camR.xyz) / (u.camF.w * u.camR.w), dot(d, u.camU.xyz) / u.camF.w, (z - NEAR) * FAR / (FAR - NEAR), z);
+  if (hide) { o.pos = vec4f(0.0, 0.0, -1.0, 1.0); }
   return o;
 }
 @vertex fn vsSky(@builtin(vertex_index) i: u32) -> @builtin(position) vec4f {
@@ -440,6 +447,40 @@ struct VO {
   var rd = viewRay(fc);
   if (u.misc.x > 0.5) { rd.y = -rd.y; return vec4f(sky(rd) * 0.6, 1.0); }
   return finish(sky(rd), 1e9, rd, fc, false);
+}
+
+// 浮空的玻璃板（三個方案）：半透明，疊在畫好的場景上。只有邊緣一條細亮線、腳下往上爬的光、斜看時的反光
+fn tone(c0: vec3f) -> vec3f {
+  var col = max(c0 * 1.25 - vec3f(0.0012), vec3f(0.0));
+  col = (col * (2.51 * col + 0.03)) / (col * (2.43 * col + 0.59) + 0.14);
+  col = pow(clamp(col, vec3f(0.0), vec3f(1.0)), vec3f(1.0 / 2.2));
+  return mix(col, col * col * (3.0 - 2.0 * col), 0.38);
+}
+@fragment fn fsGlass(in: VO) -> @location(0) vec4f {
+  let ro = u.camPos.xyz; let p = in.wp; let mir = u.misc.x > 0.5; let on = u.camU.w;
+  var pv = p; if (mir) { pv.y = -pv.y; }
+  let dv = pv - ro; let tt = length(dv); var rd = dv / tt;
+  if (mir) { rd.y = -rd.y; }
+  let n = in.n; let ndv = -dot(rd, n);
+  if (ndv <= 0.0) { discard; } // 背向鏡頭的面不畫
+  let fw = tt * u.camF.w * 2.0 / u.res.y;
+  let b = u.boxes[i32(in.m.z + 0.5)];
+  let sz = b.b.xy - b.a.xy; let q = (p.xy - b.a.xy) / sz;
+  let e = min(min(q.x, 1.0 - q.x) * sz.x, min(q.y, 1.0 - q.y) * sz.y);
+  let vip = step(0.5, in.m.y) * step(in.m.y, 1.5);
+  let ec = mix(COOL, WARM, vip); // VIP 那一片的邊線是暖色
+  var col = ec * 1.1; var a = 0.95; // 側面與頂面：玻璃的斷面，整條發亮
+  if (abs(n.z) > 0.5) {
+    let fres = pow(1.0 - ndv, 3.0);
+    let rim = smoothstep(0.005 + fw * 1.6, fw * 0.3, e);
+    col = vec3f(0.002, 0.003, 0.005)
+        + ec * (rim * 2.2 + 0.06 * exp(-e * 26.0) + 0.11 * exp(-q.y * sz.y * 2.4))
+        + COOL * (0.004 + 0.22 * fres);
+    a = clamp(0.34 + 0.5 * fres + rim, 0.0, 0.97);
+  }
+  col *= on;
+  if (mir) { return vec4f(col * exp(-tt * p.y / (ro.y + p.y) * 0.012), a); }
+  return vec4f(tone(col), a);
 }
 
 // 椅子：畫的是那一排的外框，在裡面沿視線步進距離場，打到才上色並寫入真正的深度
