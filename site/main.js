@@ -96,10 +96,11 @@ const settle = (T) => { const s = Math.min(Math.floor(T), STOPS - 1), f = T - s;
 const AT = { w: 1024, h: 1136, split: 540, right: 560 };
 const atlas = document.createElement('canvas'); atlas.width = AT.w; atlas.height = AT.h;
 const actx = atlas.getContext('2d');
-// 左牆六格＝六種溝通情境，一格一種（對應依檔名推測，待負責人確認）。只標情境，不標客戶
+// 左牆六格＝我們為客戶製作的六種影片，一格一種（對應依檔名推測，待負責人確認）。只標影片類型，不標客戶。
+// 名稱一律帶「影片」，免得被讀成 FG STUDIO 自己的網站選單（品牌介紹、產品說明…）
 const SCN = [
-  ['sleepygulls-brand-film', '品牌介紹', 'BRAND INTRODUCTION'], ['ys-01-new-device', '產品說明', 'PRODUCT EXPLAINER'], ['sg-04-mattress-sagging', '客服與常見問題', 'SUPPORT & FAQ'],
-  ['ueis-milk-protein-lab', '教育訓練', 'TRAINING'], ['ueis-thanksgiving-trailer-2026', '校園政策與活動', 'CAMPUS POLICY & EVENTS'], ['sg-02-fabric-pattern', '社群宣傳', 'SOCIAL CONTENT'],
+  ['sleepygulls-brand-film', '品牌介紹影片', 'BRAND INTRO VIDEOS'], ['ys-01-new-device', '產品說明影片', 'PRODUCT EXPLAINERS'], ['sg-04-mattress-sagging', '客服解答影片', 'SUPPORT & FAQ VIDEOS'],
+  ['ueis-milk-protein-lab', '教育訓練影片', 'TRAINING VIDEOS'], ['ueis-thanksgiving-trailer-2026', '校園宣導影片', 'CAMPUS & EVENT VIDEOS'], ['sg-02-fabric-pattern', '社群宣傳影片', 'SOCIAL VIDEOS'],
 ];
 const WALL = SCN.map((s) => s[0]);
 const slots = WALL.map((id, k) => ({ id, x: (k % 3) * (AT.w / 3), y: Math.floor(k / 3) * (AT.split / 2), w: AT.w / 3, h: AT.split / 2 }));
@@ -252,8 +253,8 @@ function setLang(l) {
   i18n.forEach((x) => { x.el.innerHTML = en ? x.en : x.zh; });
   i18nLabel.forEach((x) => x.el.setAttribute('aria-label', en ? x.en : x.zh));
   SCN.forEach(([, zh, e2], k) => {
-    tiles[k].el.setAttribute('aria-label', en ? `Play example: ${titleCase(e2)}` : `播放範例：${zh}`);
-    tiles[k].el.innerHTML = `<span class="cap"><b>0${k + 1}</b><span>${en ? e2 : zh}</span><i>${en ? '' : e2}</i></span>`;
+    tiles[k].el.setAttribute('aria-label', en ? `Play client work: ${titleCase(e2)}` : `播放客戶作品：${zh}`);
+    tiles[k].el.innerHTML = `<span class="cap"><b>${en ? 'CLIENT WORK' : '客戶作品'} 0${k + 1}</b><span>${en ? e2 : zh}</span><i>${en ? '' : e2}</i></span>`;
   });
   pickMenu.innerHTML = SCN.map(([, zh, e2], k) => `<button data-k="${k}"><b>0${k + 1}</b>${en ? titleCase(e2).replace('&', '&amp;') : zh}</button>`).join('');
   $('.note').textContent = (NOTE[noteMsg] || NOTE[''])[en ? 1 : 0];
