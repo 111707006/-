@@ -138,6 +138,24 @@ body:not([data-stop="0"]) .rail .tip { opacity: 0; }
 #lightbox { position: fixed; z-index: 20; inset: 0; background: rgba(3,4,7,.92); display: grid; place-items: center; padding: 5vw; }
 #lightbox video { max-width: 100%; max-height: 82vh; background: #000; box-shadow: 0 0 120px rgba(160,200,255,.18); }
 #lightbox .x { position: absolute; top: 22px; right: 26px; background: none; border: 0; font-size: 30px; cursor: pointer; }
+/* 名片 */
+.panel .links { display: flex; flex-wrap: wrap; gap: 6px 20px; margin-top: 18px; font-size: 12px; letter-spacing: .22em; max-width: none; }
+.panel .links a { color: var(--ink); text-decoration: none; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.panel .links a:hover { border-bottom-color: var(--warm); }
+#card { position: fixed; z-index: 20; inset: 0; background: rgba(3,4,7,.97); display: grid; place-items: center; padding: 64px 20px 28px; overflow-y: auto; }
+#card .x { position: absolute; top: 22px; right: 26px; background: none; border: 0; font-size: 30px; cursor: pointer; }
+.cardbox { width: min(560px, 100%); }
+#card .flip { display: block; width: 100%; aspect-ratio: 1131 / 683; padding: 0; border: 0; background: none; cursor: pointer; perspective: 1400px; }
+#card .faces { position: relative; display: block; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform .9s cubic-bezier(.3,.7,.2,1); }
+#card .flip.on .faces { transform: rotateY(180deg); }
+#card .faces img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 6px; backface-visibility: hidden; -webkit-backface-visibility: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
+#card .faces .info { transform: rotateY(180deg); }
+#card .hint { margin: 14px 0 18px; text-align: center; font-size: 11px; letter-spacing: .3em; color: var(--dim); }
+#card .ways { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+#card .ways a { display: block; padding: 12px 14px; border: 1px solid var(--line); background: rgba(8,10,14,.6); text-decoration: none; font-size: 13.5px; letter-spacing: .04em; overflow-wrap: anywhere; transition: border-color .25s; }
+#card .ways a:hover { border-color: var(--ink); }
+#card .ways b { display: block; font-weight: 400; font-size: 11px; letter-spacing: .22em; color: var(--warm); margin-bottom: 4px; }
+@media (max-width: 480px) { #card .ways { grid-template-columns: 1fr; } }
 .note { position: fixed; z-index: 6; left: 50%; top: 22px; transform: translateX(-50%); font-size: 12px; letter-spacing: .18em; color: var(--dim); border: 1px solid var(--line); padding: 6px 14px; background: rgba(8,10,14,.5); display: none; }
 body.nogpu .note { display: block; }
 /* 載入畫面：場景畫出第一格（或換成靜態版本）之前蓋住全頁 */
@@ -153,6 +171,7 @@ body.ready #load, body.nogpu #load { opacity: 0; visibility: hidden; }
   .rail { top: 42%; gap: 8px; }
   .rail .dot { height: 26px; }
   .panel p { font-size: 14.5px; }
+  body:not(.nogpu) .panel .no.dup { display: none; } /* 聯絡那一站內容多，站名會疊到櫃檯上的大字；場景裡已經有 CUSTOMER SERVICE */
   .menu { gap: 6px; } .menu button { padding: 10px 10px; font-size: 13px; }
   .panel:has(.menu:not([hidden])) p { display: none; } /* 選單打開時收起說明，免得整段疊到影片牆上 */
 }
@@ -234,11 +253,12 @@ body.ready #load, body.nogpu #load { opacity: 0; visibility: hidden; }
 </section>
 
 <section class="panel">
-  <div class="no">04 — CONTACT</div>
+  <div class="no dup">04 — CONTACT</div>
   <h2 class="dup">CUSTOMER SERVICE</h2>
   <p data-en="Tell us what you want to get across: your brand, the audience you want to reach, and what you want the video to achieve.">聊聊你想說清楚的事：你的品牌、想觸及的受眾，以及希望影像達成的目標。</p>
   <p class="trust" data-en="Formal contract · Optional NDA · You decide whether the work goes public">正式合約 · NDA 可選 · 作品是否公開由你決定</p>
-  <div class="acts"><a class="btn solid" id="talk" href="mailto:forgod20232023@gmail.com?subject=FG%20STUDIO%20Project%20Inquiry" data-en="Start a Conversation">開始洽談</a></div>
+  <div class="acts"><a class="btn solid" id="talk" href="mailto:forgod20232023@gmail.com?subject=FG%20STUDIO%20Project%20Inquiry" data-en="Start a Conversation">開始洽談</a><button class="btn" id="cardBtn" data-en="Business Card">名片</button></div>
+  <p class="links"><a href="mailto:forgod20232023@gmail.com">EMAIL</a><a href="tel:+886938515118" data-en="PHONE">電話</a><a href="https://line.me/ti/p/~messi920927" target="_blank" rel="noopener">LINE</a><a href="https://www.instagram.com/for_g_studio/" target="_blank" rel="noopener">INSTAGRAM</a></p>
   <p class="foot">© 2026 FG STUDIO · FOR GOD</p>
 </section>
 
@@ -250,6 +270,20 @@ body.ready #load, body.nogpu #load { opacity: 0; visibility: hidden; }
 </nav>
 
 <div id="lightbox" hidden><button class="x" aria-label="關閉" data-en-label="Close">×</button><video controls playsinline></video></div>
+<!-- 名片：先看到 logo 那一面，打開後自動翻到聯絡資訊；點名片再翻回去。下面四顆是可以直接點的聯絡方式 -->
+<div id="card" hidden>
+  <button class="x" aria-label="關閉" data-en-label="Close">×</button>
+  <div class="cardbox">
+    <button class="flip" aria-label="翻面" data-en-label="Flip the card"><span class="faces"><img class="logo" src="assets/card-logo.jpg" alt="FG STUDIO"><img class="info" src="assets/card-info.jpg" alt="JACK, Founder &amp; CEO, FG STUDIO. LINE: messi920927. Email: forgod20232023@gmail.com. Phone: +886 938 515 118 (TPE). California service: contact via email. 富居影像音樂工作室"></span></button>
+    <p class="hint" data-en="TAP THE CARD TO FLIP">點名片翻面</p>
+    <div class="ways">
+      <a href="mailto:forgod20232023@gmail.com"><b>EMAIL</b>forgod20232023@gmail.com</a>
+      <a href="tel:+886938515118"><b data-en="PHONE">電話</b>+886 938 515 118</a>
+      <a href="https://line.me/ti/p/~messi920927" target="_blank" rel="noopener"><b>LINE</b><span data-en="Add messi920927">加入好友 messi920927</span></a>
+      <a href="https://www.instagram.com/for_g_studio/" target="_blank" rel="noopener"><b>INSTAGRAM</b>@for_g_studio</a>
+    </div>
+  </div>
+</div>
 <div id="track"></div>
 <script type="module" src="main.js"></script>
 </body>
