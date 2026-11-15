@@ -127,7 +127,7 @@ function drawAtlas() {
 
 // ---------- HTML 介面 ----------
 const panels = [...document.querySelectorAll('.panel')];
-const dots = [...document.querySelectorAll('.rail button')];
+const dots = [...document.querySelectorAll('.rail .dot')];
 // 螢幕牆的六格：每格一顆貼在牆面上的按鈕（標題寫在格子左下角），點了鏡頭走到那一格正前方播放完整影片
 const TW = 11 / 3, TH = 2.9; // 一格的寬、高（公尺）
 let focus = -1, fTile = 0, fK = 0; // fK：鏡頭走向那一格的進度
@@ -135,8 +135,6 @@ const playEl = $('#play'), playV = playEl.querySelector('video');
 const tiles = SCN.map(([id, zh, en], k) => {
   const c = k % 3, r = Math.floor(k / 3), el = document.createElement('button');
   el.className = 'wl tile'; el.dataset.o = `-9.86,${7.3 - r * TH},${21.5 - c * TW}`; el.dataset.r = '0,0,-1'; el.dataset.s = '0.005'; el.dataset.stops = '2'; el.dataset.seq = k + 1;
-  el.setAttribute('aria-label', `播放範例：${zh}`);
-  el.innerHTML = `<span class="cap"><b>0${k + 1}</b><span>${zh}</span><i>${en}</i></span>`;
   el.addEventListener('click', (e) => { e.stopPropagation(); openTile(k); });
   document.body.append(el);
   // 播放範圍：影片在這一格裡不裁切時佔的大小（橫式貼齊格寬，直式貼齊格高）
@@ -198,7 +196,7 @@ document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('clic
 // 玻璃上的按鈕：玻璃沉回去，帶著選的方案走到接待櫃檯那一站；那裡的「開始洽談」會把方案寫進信件主旨
 const talk = $('#talk'), MAIL = talk.getAttribute('href').split('?')[0];
 document.querySelectorAll('.go[data-plan]').forEach((b) => b.addEventListener('click', (e) => {
-  e.stopPropagation(); talk.href = `${MAIL}?subject=${encodeURIComponent('FG STUDIO 洽談：' + b.dataset.plan)}`; talk.dataset.plan = b.dataset.plan;
+  e.stopPropagation(); talk.href = `${MAIL}?subject=${encodeURIComponent(lang === 'en' ? 'FG STUDIO Inquiry: ' + (b.dataset.planEn || b.dataset.plan) : 'FG STUDIO 洽談：' + b.dataset.plan)}`; talk.dataset.plan = b.dataset.plan;
   closeView(); goto(4);
 }));
 selBtns.forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); setSel(+b.dataset.sel); }));
@@ -222,6 +220,48 @@ let jumpTo = -1, jump = null, lastC = null;
 const fly = (s) => { jumpTo = s; scrollTo({ top: s * SEG * vh() + 1, behavior: 'instant' }); };
 dots.forEach((b, k) => b.addEventListener('click', () => goto(k)));
 document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => { closeView(); goto(+b.dataset.go); }));
+// 上一站／下一站：一路往下滑不一定剛好停在站點上（說明要靠近站點才出現），按一下就走到下一站
+const prevB = $('.rail .prev'), nextB = $('.rail .next');
+const step = (d) => { closeView(); goto(Math.min(Math.max(Math.round(scrollT()) + d, 0), STOPS)); };
+prevB.addEventListener('click', (e) => { e.stopPropagation(); step(-1); });
+nextB.addEventListener('click', (e) => { e.stopPropagation(); step(1); });
+
+// 六種情境的選單：說明旁邊的按鈕打開，選一支就跟點牆上那一格一樣（鏡頭走過去播放）
+const pickBtn = $('#pickBtn'), pickMenu = $('#pickMenu');
+const showMenu = (on) => { pickMenu.hidden = !on; pickBtn.setAttribute('aria-expanded', on); };
+pickBtn.addEventListener('click', (e) => { e.stopPropagation(); showMenu(pickMenu.hidden); });
+pickMenu.addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  e.stopPropagation(); showMenu(false); openTile(+b.dataset.k);
+});
+
+// ---------- 語言：預設是原本的中英混排（zh），EN 是全英文 ----------
+// index.html 裡有 data-en 的元素：中文是原本的內容，英文寫在 data-en；aria-label 的英文寫在 data-en-label
+let lang = 'zh', noteMsg = '';
+const i18n = [...document.querySelectorAll('[data-en]')].map((el) => ({ el, zh: el.innerHTML, en: el.dataset.en }));
+const i18nLabel = [...document.querySelectorAll('[data-en-label]')].map((el) => ({ el, zh: el.getAttribute('aria-label'), en: el.dataset.enLabel }));
+const NOTE = { // 靜態版本的提示：一般（不支援）、跑太慢、顯示裝置中斷
+  '': ['此裝置無法顯示 3D 場景，顯示靜態版本', 'This device can’t show the 3D scene. Showing the static version.'],
+  'too slow': ['此裝置跑 3D 場景太吃力，顯示靜態版本', 'The 3D scene is too heavy for this device. Showing the static version.'],
+  'device lost': ['顯示裝置中斷，顯示靜態版本（重新整理可再試一次）', 'Graphics device lost. Showing the static version (reload to try again).'],
+};
+const titleCase = (t) => t.toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase()).replace('Faq', 'FAQ');
+function setLang(l) {
+  lang = l === 'en' ? 'en' : 'zh'; const en = lang === 'en';
+  document.documentElement.lang = en ? 'en' : 'zh-Hant';
+  i18n.forEach((x) => { x.el.innerHTML = en ? x.en : x.zh; });
+  i18nLabel.forEach((x) => x.el.setAttribute('aria-label', en ? x.en : x.zh));
+  SCN.forEach(([, zh, e2], k) => {
+    tiles[k].el.setAttribute('aria-label', en ? `Play example: ${titleCase(e2)}` : `播放範例：${zh}`);
+    tiles[k].el.innerHTML = `<span class="cap"><b>0${k + 1}</b><span>${en ? e2 : zh}</span><i>${en ? '' : e2}</i></span>`;
+  });
+  pickMenu.innerHTML = SCN.map(([, zh, e2], k) => `<button data-k="${k}"><b>0${k + 1}</b>${en ? titleCase(e2).replace('&', '&amp;') : zh}</button>`).join('');
+  $('.note').textContent = (NOTE[noteMsg] || NOTE[''])[en ? 1 : 0];
+  document.querySelectorAll('.lang [data-lang]').forEach((b) => { const on = b.dataset.lang === lang; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+  try { localStorage.setItem('lang', lang); } catch {}
+}
+document.querySelectorAll('.lang [data-lang]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); setLang(b.dataset.lang); }));
+{ let saved = null; try { saved = localStorage.getItem('lang'); } catch {} setLang(qs.get('lang') || saved || 'zh'); } // ?lang=en 可以直接開英文版
 addEventListener('keydown', (e) => {
   if (focus >= 0 || view) return;
   const s = Math.round(scrollT());
@@ -263,6 +303,7 @@ function pick(cx, cy) {
   return stop === cur ? -1 : stop;
 }
 const free = (e) => !e.target.closest('button, a, input, video, .glass, #vbar, #lightbox');
+canvas.addEventListener('click', () => {}); // iOS Safari：元素自己沒有 click 監聽的話，點它不會送出 click，下面掛在 window 上的就收不到
 addEventListener('click', (e) => { if (!free(e)) return; const s = pick(e.clientX, e.clientY); if (s >= 0) fly(s); });
 addEventListener('pointermove', (e) => { document.body.classList.toggle('pick', e.pointerType === 'mouse' && free(e) && pick(e.clientX, e.clientY) >= 0); });
 
@@ -271,6 +312,8 @@ function ui(T) {
   const s = Math.round(T), near = 1 - Math.min(Math.abs(T - s) * 3.2, 1);
   panels.forEach((p, k) => { const on = k === s && near > 0.25 && (k !== 0 || introK > 0.82) && !view && focus < 0; p.classList.toggle('on', on); p.style.setProperty('--k', k === s ? near : 0); });
   dots.forEach((d, k) => d.classList.toggle('on', k === s));
+  prevB.disabled = s === 0; nextB.disabled = s === STOPS;
+  if (s !== 2 && !pickMenu.hidden) showMenu(false);
   document.body.dataset.stop = s;
 }
 
@@ -278,9 +321,7 @@ function ui(T) {
 function fallback(msg) {
   document.body.classList.add('nogpu'); introK = 1;
   console.warn('3D unavailable:', msg);
-  // 提示要說實話：跑太慢或顯示裝置中斷，不是「不支援」
-  const note = document.querySelector('.note');
-  if (note && (msg === 'too slow' || msg === 'device lost')) note.textContent = msg === 'too slow' ? '此裝置跑 3D 場景太吃力，顯示靜態版本' : '顯示裝置中斷，顯示靜態版本（重新整理可再試一次）';
+  noteMsg = msg; setLang(lang); // 提示要說實話：跑太慢或顯示裝置中斷，不是「不支援」
   const loop = () => { ui(scrollT()); flat(); requestAnimationFrame(loop); }; loop();
 }
 
