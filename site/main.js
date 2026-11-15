@@ -286,7 +286,8 @@ addEventListener('keydown', (e) => {
 
 // 形象影片燈箱
 const lb = $('#lightbox'), lbv = $('#lightbox video');
-document.querySelectorAll('[data-film]').forEach((b) => b.addEventListener('click', () => { lbv.src = `${MEDIA}${b.dataset.film}`; lb.hidden = false; lbv.play().catch(() => {}); }));
+const openFilm = (path) => { lbv.src = `${MEDIA}${path}`; lb.hidden = false; lbv.play().catch(() => {}); };
+document.querySelectorAll('[data-film]').forEach((b) => b.addEventListener('click', () => openFilm(b.dataset.film)));
 const closeLb = () => { lb.hidden = true; lbv.pause(); lbv.removeAttribute('src'); lbv.load(); };
 lb.addEventListener('click', (e) => { if (e.target === lb || e.target.closest('.x')) closeLb(); });
 addEventListener('keydown', (e) => { if (e.key === 'Escape' && !lb.hidden) closeLb(); });
@@ -296,7 +297,9 @@ addEventListener('pointermove', (e) => { mx = e.clientX / innerWidth - 0.5; my =
 
 // ---------- 點場景裡的東西就走過去 ----------
 // 右牆螢幕 → 形象影片那一站、左牆螢幕 → 螢幕牆、大廳開口（櫃檯）→ 接待櫃檯。
+// 人已經在作業中心時，點任何一座工作站（螢幕、長桌）＝播放作業中心的影片（pick 回傳 FILM）。
 // 從鏡頭往點的位置打一條線，找最先碰到的方塊（被牆擋住的就點不到）；已經在那一站就不動
+const FILM = 99, OPS_FILM = 'videos/GVS_Operations_30s_v2.mp4';
 let camS = null; // frame() 每一格記下當下的鏡頭
 function pick(cx, cy) {
   if (!camS || view || focus >= 0) return -1;
@@ -315,11 +318,12 @@ function pick(cx, cy) {
   // 大廳裡面（櫃檯、後牆、天花、作業中心）從遠處看很小，整個開口都算櫃檯那一站；人已經在櫃檯時，點後面的工作站才是去作業中心
   const cur = Math.round(scrollT()), m = hit < 0 ? -1 : boxes[hit][3], lobby = hit === B_DESK || m === 4 || m === 8 || hit >= nOuter;
   const stop = hit === B_RIGHT ? 1 : hit === B_LEFT ? 2 : lobby ? (cur === 4 && hit >= nOuter ? 3 : 4) : -1;
+  if (cur === 3 && hit >= nOuter) return FILM;
   return stop === cur ? -1 : stop;
 }
 const free = (e) => !e.target.closest('button, a, input, video, .glass, #vbar, #lightbox');
 canvas.addEventListener('click', () => {}); // iOS Safari：元素自己沒有 click 監聽的話，點它不會送出 click，下面掛在 window 上的就收不到
-addEventListener('click', (e) => { if (!free(e)) return; const s = pick(e.clientX, e.clientY); if (s >= 0) fly(s); });
+addEventListener('click', (e) => { if (!free(e)) return; const s = pick(e.clientX, e.clientY); if (s === FILM) openFilm(OPS_FILM); else if (s >= 0) fly(s); });
 addEventListener('pointermove', (e) => { document.body.classList.toggle('pick', e.pointerType === 'mouse' && free(e) && pick(e.clientX, e.clientY) >= 0); });
 
 let introK = 1; // 開場鏡頭的進度：0 最遠，1 就定位

@@ -27,3 +27,4 @@
 | `ueis-milk-protein-lab` | UEIS_Milk_Protein_Lab_EN | 橫式 | 78 秒 | 110 MB | 15 MB |
 | `sleepygulls-brand-film` | 鷗鷗睏品牌形象 | 橫式 | 96 秒 | 233 MB | 11 MB |
 | `videos/GVS_VIP_Double_v6.mp4` | GVS_VIP_Double_v6_preview（GVS 形象影片） | 橫式 | 60 秒 | 21 MB | （原檔即可用） |
+| `videos/GVS_Operations_30s_v2.mp4` | GVS_Operations_30s_v2_preview（作業中心影片） | 橫式 | 30 秒 | 14 MB | （原檔即可用） |
