@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FG STUDIO — The Creative District</title>
+<meta name="description" content="FG STUDIO 影像 × 音樂 × 創意製作。Beyond the frame.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500&family=Noto+Sans+TC:wght@300;400&display=swap" rel="stylesheet">
+<style>
+:root { --ink: #f2f0ec; --dim: rgba(242,240,236,.62); --line: rgba(242,240,236,.22); --warm: #ffbe7a; --bg: #05070b; }
+* { box-sizing: border-box; margin: 0; }
+html { background: var(--bg); }
+body { color: var(--ink); font: 300 16px/1.6 Jost, "Noto Sans TC", system-ui, sans-serif; letter-spacing: .02em; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+[hidden] { display: none !important; }
+button, a { font: inherit; color: inherit; letter-spacing: inherit; }
+#stage { position: fixed; inset: 0; width: 100%; height: 100%; display: block; background: var(--bg); opacity: 0; transition: opacity 1.2s; }
+body.ready #stage { opacity: 1; }
+body.nogpu #stage { opacity: 1; background: #05070b url(assets/fallback.jpg) center/cover; }
+#track { width: 1px; pointer-events: none; }
+.shade { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(90% 70% at 0% 100%, rgba(4,5,8,.9), transparent 70%), linear-gradient(180deg, rgba(5,7,11,.5), transparent 20%, transparent 55%, rgba(5,7,11,.7)); }
+
+header { position: fixed; z-index: 5; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; padding: 26px clamp(20px, 4vw, 56px); }
+.brand { font-size: 19px; letter-spacing: .14em; text-decoration: none; }
+.menu { width: 26px; height: 14px; border: 0; background: linear-gradient(var(--ink), var(--ink)) top/100% 1.5px no-repeat, linear-gradient(var(--ink), var(--ink)) bottom/100% 1.5px no-repeat; cursor: pointer; }
+
+/* 貼在場景表面的標示（由 main.js 做透視） */
+.wl { position: fixed; z-index: 1; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; white-space: nowrap; opacity: 0; transition: opacity .6s; will-change: transform; color: #f4efe6; text-shadow: 0 0 18px rgba(255,220,170,.35); }
+.wl small { display: block; font-size: 30px; letter-spacing: .2em; opacity: .75; }
+.wl small::before { content: ""; display: block; width: 64px; height: 2px; background: currentColor; margin-bottom: 26px; }
+.wl b { display: block; font-weight: 300; font-size: 56px; letter-spacing: .12em; line-height: 1.25; }
+.wl i { display: block; font-style: normal; font-size: 36px; letter-spacing: .2em; opacity: .8; }
+.wl.desk { display: flex; align-items: center; gap: 34px; font-size: 30px; letter-spacing: .28em; }
+.wl.desk img { height: 58px; }
+.wl.desk span { width: 1.5px; height: 64px; background: currentColor; opacity: .6; }
+.wl.ops { font-size: 34px; letter-spacing: .32em; color: #2a2118; text-shadow: none; opacity: .0; }
+
+/* 每一站的說明 */
+.panel { position: fixed; z-index: 4; left: clamp(20px, 4vw, 56px); right: clamp(20px, 4vw, 56px); bottom: clamp(28px, 7vh, 72px); max-width: 560px; opacity: 0; transform: translateY(18px); transition: opacity .5s, transform .7s cubic-bezier(.2,.7,.2,1); pointer-events: none; }
+.panel.on { opacity: 1; transform: none; pointer-events: auto; }
+.panel .no { font-size: 14px; letter-spacing: .22em; color: var(--dim); }
+.panel h2 { font-weight: 300; font-size: clamp(28px, 4.2vw, 46px); letter-spacing: .08em; line-height: 1.15; margin: 8px 0 14px; }
+.panel p { color: var(--dim); max-width: 30em; font-size: 15.5px; }
+.panel .acts { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
+.btn { display: inline-flex; align-items: center; gap: 12px; padding: 13px 22px; border: 1px solid var(--line); background: rgba(8,10,14,.45); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); text-decoration: none; cursor: pointer; font-size: 13px; letter-spacing: .2em; text-transform: uppercase; transition: background .25s, border-color .25s, color .25s; }
+.btn:hover { border-color: var(--ink); }
+.btn.solid { background: var(--ink); color: #0a0c10; border-color: var(--ink); }
+.btn.solid:hover { background: #fff; }
+.btn::after { content: "→"; font-size: 16px; letter-spacing: 0; }
+.hero { max-width: 760px; }
+.hero h1 { font-weight: 300; font-size: clamp(36px, 5.6vw, 76px); letter-spacing: .06em; line-height: 1.02; }
+.hero .sub { margin-top: 14px; font-size: clamp(13px, 1.5vw, 17px); letter-spacing: .26em; color: var(--dim); text-transform: uppercase; }
+.hint { position: fixed; z-index: 4; right: clamp(20px, 4vw, 56px); bottom: clamp(28px, 7vh, 72px); font-size: 11px; letter-spacing: .3em; color: var(--dim); writing-mode: vertical-rl; transition: opacity .5s; }
+.hint::after { content: ""; display: inline-block; width: 1px; height: 56px; margin-top: 12px; background: linear-gradient(var(--ink), transparent); animation: drop 2.2s infinite; transform-origin: top; }
+@keyframes drop { 0% { transform: scaleY(0); } 60% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(1); opacity: 0; } }
+body:not([data-stop="0"]) .hint { opacity: 0; }
+
+/* 右側的站點導覽 */
+.rail { position: fixed; z-index: 5; right: clamp(16px, 2.4vw, 34px); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 14px; }
+.rail button { width: 22px; height: 22px; padding: 0; border: 0; background: none; cursor: pointer; position: relative; }
+.rail button::before { content: ""; position: absolute; right: 4px; top: 10px; height: 1.5px; width: 8px; background: var(--dim); transition: width .35s, background .35s; }
+.rail button.on::before { width: 20px; background: var(--warm); }
+
+#lightbox { position: fixed; z-index: 20; inset: 0; background: rgba(3,4,7,.92); display: grid; place-items: center; padding: 5vw; }
+#lightbox video { max-width: 100%; max-height: 82vh; background: #000; box-shadow: 0 0 120px rgba(160,200,255,.18); }
+#lightbox .x { position: absolute; top: 22px; right: 26px; background: none; border: 0; font-size: 30px; cursor: pointer; }
+.note { position: fixed; z-index: 6; left: 50%; top: 22px; transform: translateX(-50%); font-size: 12px; letter-spacing: .18em; color: var(--dim); border: 1px solid var(--line); padding: 6px 14px; background: rgba(8,10,14,.5); display: none; }
+body.nogpu .note { display: block; }
+@media (max-width: 640px) {
+  .rail { display: none; }
+  .panel p { font-size: 14.5px; }
+  .hint { display: none; }
+}
+</style>
+</head>
+<body data-stop="0">
+<canvas id="stage" aria-hidden="true"></canvas>
+<div class="shade"></div>
+
+<!-- 場景表面上的標示：data-o 原點（公尺）、data-r 文字方向、data-s 每像素幾公尺 -->
+<div class="wl" data-o="-9.86,10.9,21.3" data-r="0,0,-1" data-s="0.0165"><small>PORTFOLIO</small><b>BRAND CONTENT</b><i>廣告行銷</i></div>
+<div class="wl" data-o="9.86,11.3,10.7" data-r="0,0,1" data-s="0.0165"><small>GVS</small><b>BRAND FILM</b><i>形象影片</i></div>
+<div class="wl desk" data-o="0.5,0.86,3.02" data-r="1,0,0" data-s="0.0056" data-stops="0,1,2,4"><img src="assets/fg.png" alt="FG"><span></span>CUSTOMER SERVICE</div>
+
+<header>
+  <a class="brand" href="#" data-go="0">FG STUDIO</a>
+  <button class="menu" aria-label="選單" data-go="4"></button>
+</header>
+<div class="note">此裝置不支援 WebGPU，顯示靜態版本</div>
+
+<section class="panel hero" data-k="0">
+  <h1>BEYOND<br>THE FRAME.</h1>
+  <p class="sub">We create what others imagine.</p>
+  <div class="acts">
+    <button class="btn" data-go="1">Explore the studio</button>
+    <button class="btn solid" data-go="4">View services</button>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="no">01 — FG STUDIO</div>
+  <h2>THE STUDIO</h2>
+  <p>影像 × 音樂 × 創意製作。先理解你的品牌，再說好你的故事。</p>
+  <div class="acts"><button class="btn" data-film="videos/Welcome_to_FG_GVS.mp4">播放形象影片</button></div>
+</section>
+
+<section class="panel">
+  <div class="no">02 — PORTFOLIO</div>
+  <h2>BRAND CONTENT</h2>
+  <p>品牌客製化影像製作，為不同產業打造專屬的影像風格。螢幕牆上播放的都是實際作品。</p>
+</section>
+
+<section class="panel">
+  <div class="no">03 — GVS BUSINESS LOUNGE</div>
+  <h2>GVS OPERATIONS</h2>
+  <p>六座 AI 工作站，以 AI 與影像流程為核心，執行剪輯、調色、後製與資料管理。畫面為流程示意。</p>
+</section>
+
+<section class="panel">
+  <div class="no">04 — CONTACT / PROJECT</div>
+  <h2>CUSTOMER SERVICE</h2>
+  <p>專案洽詢、報價諮詢、預約通話與後續客服支援。</p>
+  <div class="acts"><a class="btn solid" href="mailto:forgod20232023@gmail.com?subject=FG%20STUDIO%20Project%20Inquiry">開始洽談</a></div>
+</section>
+
+<div class="hint">SCROLL</div>
+<nav class="rail" aria-label="場景">
+  <button aria-label="首頁"></button><button aria-label="01 The Studio"></button><button aria-label="02 Brand Content"></button><button aria-label="03 GVS Operations"></button><button aria-label="04 Customer Service"></button>
+</nav>
+
+<div id="lightbox" hidden><button class="x" aria-label="關閉">×</button><video controls playsinline></video></div>
+<div id="track"></div>
+<script type="module" src="main.js"></script>
+</body>
+</html>
