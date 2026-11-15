@@ -389,7 +389,8 @@ async function start() {
   // 解析度倍率：高畫質最高 1.5（一倍螢幕上等於超取樣，當成抗鋸齒），低畫質 1.25；太慢就往下降
   // 手機螢幕是 2～3 倍像素，1.25 倍會糊，所以手機上限放到 2
   // MIN：平常降到這裡就停（寧可 30 幀也要清楚）；真的不到 20 幀才繼續往 HARD 降
-  const MIN = mobile ? 0.9 : 0.85, HARD = 0.45, cap = () => (mobile ? Math.min(devicePixelRatio, 2) : hq ? 1.5 : 1.25);
+  // 上限至少到螢幕的實際像素（最多 2 倍），不然 125%／150% 縮放的螢幕永遠是糊的
+  const DPR = Math.min(devicePixelRatio, 2), MIN = mobile ? 0.9 : 1, HARD = 0.45, cap = () => (mobile ? DPR : Math.max(DPR, hq ? 1.5 : 1.25));
   let scale = qs.has('scale') ? +qs.get('scale') : Math.min(devicePixelRatio, cap()), acc = 0, frames = 0, best = 1e9, cool = 0, coolN = 20, slowN = 0, dead = false;
   const fixedScale = qs.has('scale');
   let W = 0, H = 0, longN = 0;
@@ -538,7 +539,7 @@ async function start() {
         best = Math.min(best, ms); if (cool > 0) cool--;
         // strict：掉到 45 幀以下。用來收掉「多出來的」東西：超取樣（一倍以上）和高畫質
         // 一倍以下的解析度是最後才動的：要掉到 28 幀以下才降（手機一律用這條），不然 40 幾幀就一路降到糊掉
-        const strict = ms > Math.max(Math.min(best, 16.7) * 1.3, 20), slow = mobile || scale <= 1 ? ms > 36 : strict;
+        const strict = ms > Math.max(Math.min(best, 16.7) * 1.3, 20), slow = mobile || scale <= DPR ? ms > 36 : strict;
         const lo = ms > 50 ? HARD : MIN;
         slowHi = strict && hq ? slowHi + 1 : 0;
         // 高畫質已經降到一倍以下還是慢，或連兩次不到 30 幀：換成低畫質，解析度留著
@@ -546,7 +547,7 @@ async function start() {
         else if (slow && scale > lo) { scale = Math.max(lo, scale * 0.85); cool = coolN; coolN = Math.min(coolN * 2, 320); resize(); }
         // 升回來的條件：貼著螢幕更新率，或至少有 74 幀。只看前者的話，144 Hz 的螢幕上跑 75 幀永遠升不回來，畫面就卡在最低解析度
         // 被壓到 MIN 以下的，回到 25 幀以上就先升回 MIN
-        else if (cool === 0 && ((scale < MIN && ms < 40) || ((mobile ? ms < 26 : ms < Math.max(best * 1.12, 13.5)) && scale < cap()))) { scale = Math.min(cap(), scale * 1.1); resize(); }
+        else if (cool === 0 && ((scale < MIN && ms < 40) || ((mobile || scale < DPR ? ms < 26 : ms < Math.max(best * 1.12, 13.5)) && scale < cap()))) { scale = Math.min(cap(), scale * 1.1); resize(); }
         // 降到最低解析度還是不到 20 幀，連續三次就換成靜態版本
         if (scale <= HARD && ms > 50) { if (++slowN >= 3) { dead = true; fallback('too slow'); } } else slowN = 0;
       }
