@@ -19,8 +19,8 @@ box(-7, 5.2, -12, 7, 12.6, 0, 2);
 box(-7, 5.0, -12, 7, 5.2, 0.15, 8);
 box(-7, 0, -12.4, 7, 5.0, -12, 4);
 // 影片螢幕：左牆作品牆、右牆形象影片（par = 自己的索引，著色器用來讀尺寸）
-let i = box(-10.0, 1.5, 10.5, -9.88, 7.3, 21.5, 3); boxes[i][7] = i;
-i = box(9.88, 1.5, 10.5, 10.0, 7.69, 21.5, 3); boxes[i][7] = i;
+let i = box(-10.0, 1.5, 10.5, -9.88, 7.3, 21.5, 3); boxes[i][7] = i; const B_LEFT = i;
+i = box(9.88, 1.5, 10.5, 10.0, 7.69, 21.5, 3); boxes[i][7] = i; const B_RIGHT = i;
 // 螢幕外框
 box(-10.0, 1.38, 10.38, -9.93, 7.42, 21.62, 6); box(9.93, 1.38, 10.38, 10.0, 7.81, 21.62, 6);
 // 長凳
@@ -29,7 +29,7 @@ for (const s of [-1, 1]) {
   box(Math.min(s * 7.55, s * 8.45), 0, 12.7, Math.max(s * 7.55, s * 8.45), 0.40, 19.3, 6);   // 內縮的底座
 }
 // 接待櫃檯、櫃檯上的服務螢幕
-box(-4.6, 0.1, 1.6, 4.6, 1.12, 3.0, 1);
+const B_DESK = box(-4.6, 0.1, 1.6, 4.6, 1.12, 3.0, 1);
 i = box(2.3, 1.2, 2.2, 3.2, 1.72, 2.24, 7); boxes[i][7] = i;
 box(2.71, 1.12, 2.24, 2.79, 1.3, 2.28, 6);
 // 大廳入口的直框
@@ -215,8 +215,11 @@ const setHeight = () => { $('#track').style.height = `${(STOPS * SEG + 1) * 100}
 setHeight();
 const scrollT = () => Math.min(Math.max(scrollY / (SEG * vh()), 0), STOPS);
 const goto = (s) => scrollTo({ top: s * SEG * vh() + 1, behavior: 'smooth' });
+// 直接飛過去：捲動位置立刻換到那一站，鏡頭從現在的位置直線移過去（frame() 裡），不沿路徑經過中間的站
+let jumpTo = -1, jump = null, lastC = null;
+const fly = (s) => { jumpTo = s; scrollTo({ top: s * SEG * vh() + 1, behavior: 'instant' }); };
 dots.forEach((b, k) => b.addEventListener('click', () => goto(k)));
-document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => goto(+b.dataset.go)));
+document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => { closeView(); goto(+b.dataset.go); }));
 addEventListener('keydown', (e) => {
   if (focus >= 0 || view) return;
   const s = Math.round(scrollT());
@@ -233,6 +236,33 @@ addEventListener('keydown', (e) => { if (e.key === 'Escape' && !lb.hidden) close
 
 let mx = 0, my = 0;
 addEventListener('pointermove', (e) => { mx = e.clientX / innerWidth - 0.5; my = e.clientY / innerHeight - 0.5; });
+
+// ---------- 點場景裡的東西就走過去 ----------
+// 右牆螢幕 → 形象影片那一站、左牆螢幕 → 螢幕牆、大廳開口（櫃檯）→ 接待櫃檯。
+// 從鏡頭往點的位置打一條線，找最先碰到的方塊（被牆擋住的就點不到）；已經在那一站就不動
+let camS = null; // frame() 每一格記下當下的鏡頭
+function pick(cx, cy) {
+  if (!camS || view || focus >= 0) return -1;
+  const { p, f, r, up, tanH, aspect } = camS, x = (cx / innerWidth * 2 - 1) * tanH * aspect, y = (1 - cy / innerHeight * 2) * tanH;
+  const d = [0, 1, 2].map((j) => f[j] + r[j] * x + up[j] * y);
+  let best = 1e9, hit = -1;
+  boxes.forEach((b, k) => {
+    if (b[3] === 12) return;
+    let t0 = 0, t1 = 1e9;
+    for (let j = 0; j < 3; j++) {
+      const inv = 1 / (Math.abs(d[j]) < 1e-6 ? 1e-6 : d[j]), a = (b[j] - p[j]) * inv, c = (b[j + 4] - p[j]) * inv;
+      t0 = Math.max(t0, Math.min(a, c)); t1 = Math.min(t1, Math.max(a, c));
+    }
+    if (t0 <= t1 && t0 < best) { best = t0; hit = k; }
+  });
+  // 大廳裡面（櫃檯、後牆、天花、作業中心）從遠處看很小，整個開口都算櫃檯那一站；人已經在櫃檯時，點後面的工作站才是去作業中心
+  const cur = Math.round(scrollT()), m = hit < 0 ? -1 : boxes[hit][3], lobby = hit === B_DESK || m === 4 || m === 8 || hit >= nOuter;
+  const stop = hit === B_RIGHT ? 1 : hit === B_LEFT ? 2 : lobby ? (cur === 4 && hit >= nOuter ? 3 : 4) : -1;
+  return stop === cur ? -1 : stop;
+}
+const free = (e) => !e.target.closest('button, a, input, video, .glass, #vbar, #lightbox');
+addEventListener('click', (e) => { if (!free(e)) return; const s = pick(e.clientX, e.clientY); if (s >= 0) fly(s); });
+addEventListener('pointermove', (e) => { document.body.classList.toggle('pick', e.pointerType === 'mouse' && free(e) && pick(e.clientX, e.clientY) >= 0); });
 
 let introK = 1; // 開場鏡頭的進度：0 最遠，1 就定位
 function ui(T) {
@@ -375,6 +405,7 @@ async function start() {
     const dt = Math.min((now - last) / 1000, 0.1); last = now;
     const time = qs.has('time') ? +qs.get('time') : (now - t0) / 1000;
     const target = fixedT ?? scrollT();
+    if (jumpTo >= 0) { if (lastC) jump = { p: lastC.p, l: lastC.l, k: 0 }; Ts = target; jumpTo = -1; }
     Ts += (target - Ts) * (fixedT != null ? 1 : 1 - Math.exp(-dt * 4.2));
     tI += dt * (scrollT() > 0.03 ? 5 : 1); // 一捲動就快轉
     const sm = (x) => ease(Math.min(Math.max(x, 0), 1));
@@ -413,11 +444,18 @@ async function start() {
       const fp = [vX, cy, g.z + d], tl = [vX, cy, g.z];
       for (let j = 0; j < 3; j++) { c.p[j] += (fp[j] - c.p[j]) * e; c.l[j] += (tl[j] - c.l[j]) * e; }
     }
+    if (jump) { // 直接飛：從按下去那一刻的鏡頭，直線移到新的位置
+      jump.k = Math.min(jump.k + dt / 1.1, 1); const e = ease(jump.k);
+      for (let j = 0; j < 3; j++) { c.p[j] = jump.p[j] + (c.p[j] - jump.p[j]) * e; c.l[j] = jump.l[j] + (c.l[j] - jump.l[j]) * e; }
+      if (jump.k >= 1) jump = null;
+    }
+    lastC = { p: [...c.p], l: [...c.l] };
     const sway = (fixedT != null ? 0 : 1) * (1 - fK) * (1 - vK);
     const p = [c.p[0] + mx * 0.5 * sway, c.p[1] - my * 0.25 * sway + Math.sin(time * 0.4) * 0.03 * sway, c.p[2]];
     let f = [c.l[0] - p[0], c.l[1] - p[1], c.l[2] - p[2]]; const fl = Math.hypot(...f); f = f.map((x) => x / fl);
     let r = [-f[2], 0, f[0]]; const rl = Math.hypot(...r); r = r.map((x) => x / rl);
     const up = [r[1] * f[2] - r[2] * f[1], r[2] * f[0] - r[0] * f[2], r[0] * f[1] - r[1] * f[0]];
+    camS = { p, f, r, up, tanH, aspect };
 
     data.set([p[0], p[1], p[2], time, f[0], f[1], f[2], tanH, r[0], r[1], r[2], aspect, up[0], up[1], up[2], warmOn,
       canvas.width, canvas.height, boxes.length, lines.length, T, AT.split / AT.h, AT.right / AT.h, 0, nOuter, glassOn, hq ? 1 : 0, 0, 0, riseP, 0, 0]);
