@@ -1,6 +1,8 @@
 // FG STUDIO — The Creative District（樣本）
 // 直接用 WebGPU，不用引擎；場景由程式生成，文字全部在 HTML。
+// 沒有 WebGPU 的瀏覽器改走 WebGL2（gl.js、shader-gl.js），畫面相同。
 import { WGSL, MAX_BOXES, MAX_LINES } from './shader.js';
+import { initGL } from './gl.js';
 
 const $ = (s) => document.querySelector(s);
 const canvas = $('#stage');
@@ -275,7 +277,7 @@ function ui(T) {
 // ---------- 啟動 ----------
 function fallback(msg) {
   document.body.classList.add('nogpu'); introK = 1;
-  console.warn('WebGPU unavailable:', msg);
+  console.warn('3D unavailable:', msg);
   // 提示要說實話：跑太慢或顯示裝置中斷，不是「不支援」
   const note = document.querySelector('.note');
   if (note && (msg === 'too slow' || msg === 'device lost')) note.textContent = msg === 'too slow' ? '此裝置跑 3D 場景太吃力，顯示靜態版本' : '顯示裝置中斷，顯示靜態版本（重新整理可再試一次）';
@@ -283,23 +285,15 @@ function fallback(msg) {
 }
 
 async function start() {
-  if (!navigator.gpu || qs.has('nogpu')) return fallback('no navigator.gpu'); // ?nogpu：強制看靜態版本
-  const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
-  if (!adapter) return fallback('no adapter');
-  const device = await adapter.requestDevice();
-  window.__gpu = device; // 保留參照，避免被回收
-  device.lost.then((i) => { console.warn('device lost:', i.reason, i.message); if (!dead) { dead = true; fallback('device lost'); } });
-  device.addEventListener('uncapturederror', (e) => console.error('GPU error:', e.error.message));
-  // ?offscreen：畫到離屏材質再讀回 2D 畫布，給沒有顯示卡、無法呈現 WebGPU 畫布的環境截圖用
-  const OFF = qs.has('offscreen');
-  const format = OFF ? 'rgba8unorm' : navigator.gpu.getPreferredCanvasFormat();
-  const ctx = OFF ? canvas.getContext('2d') : canvas.getContext('webgpu');
-  if (!OFF) ctx.configure({ device, format, alphaMode: 'opaque' });
+  if (qs.has('nogpu')) return fallback('forced'); // ?nogpu：強制看靜態版本
+  // 先試 WebGPU；沒有就退到 WebGL2（gl.js，?gl 可以強制走這條）；兩個都不行才顯示靜態版本
+  let device = null;
+  if (navigator.gpu && !qs.has('gl')) {
+    const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' }).catch(() => null);
+    if (adapter) device = await adapter.requestDevice().catch(() => null);
+  }
+  const onLost = () => { if (!dead) { dead = true; fallback('device lost'); } };
 
-  const module = device.createShaderModule({ code: WGSL });
-  const info = await module.getCompilationInfo();
-  const errs = info.messages.filter((m) => m.type === 'error');
-  if (errs.length) { console.error(errs.map((m) => `${m.lineNum}:${m.linePos} ${m.message}`).join('\n')); return fallback('shader'); }
   // ---- 幾何：每個方塊六個面；地面一大片；椅子那一排的外框 ----
   // 頂點：位置 3、法線 3、（材質、par、方塊編號）3
   const V = [], I = [];
@@ -322,62 +316,121 @@ async function start() {
   const nIdxMain = I.length;
   addBox([-5.0, 0, -8.15, 11, 5.0, 1.32, -7.38, 0], 0); // 椅子那一排的外框（與 shader.js 的 CH0／CH1 相同）
   const nIdxGlass0 = I.length; GL.forEach((g) => addBox(boxes[g.i], g.i)); const nIdxGlass = I.length - nIdxGlass0; // 玻璃板：半透明，最後畫
-  const vbuf = device.createBuffer({ size: V.length * 4, usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST });
-  device.queue.writeBuffer(vbuf, 0, new Float32Array(V));
-  const ibuf = device.createBuffer({ size: Math.ceil(I.length / 2) * 4, usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST });
-  device.queue.writeBuffer(ibuf, 0, new Uint16Array(Math.ceil(I.length / 2) * 2).map((_, k) => I[k] || 0));
-
-  // ---- 繪製流程 ----
-  const bgl = device.createBindGroupLayout({ entries: [
-    { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: {} },
-    { binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: {} },
-    { binding: 2, visibility: GPUShaderStage.FRAGMENT, sampler: {} },
-    { binding: 3, visibility: GPUShaderStage.FRAGMENT, texture: {} },
-  ] });
-  const layout = device.createPipelineLayout({ bindGroupLayouts: [bgl] });
-  const vbl = [{ arrayStride: 36, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }, { shaderLocation: 1, offset: 12, format: 'float32x3' }, { shaderLocation: 2, offset: 24, format: 'float32x3' }] }];
-  const MS = 4, RF = 'rgba16float';
-  const vsB = { module, entryPoint: 'vsBox', buffers: vbl }, vsS = { module, entryPoint: 'vsSky' };
-  const fr = (entryPoint, f) => ({ module, entryPoint, targets: [{ format: f }] });
-  const ds = (depthCompare, depthWriteEnabled) => ({ format: 'depth24plus', depthCompare, depthWriteEnabled });
-  const mk = (o) => device.createRenderPipelineAsync({ layout, multisample: { count: MS }, primitive: { topology: 'triangle-list', cullMode: 'none' }, ...o });
-  // 主畫面：先只寫深度（pPre），椅子（pChair）寫自己的深度，再用「深度相等」上色（pBox），每個像素只算一次；最後補天空
-  // 倒影：同一套幾何上下顛倒畫到一張半解析度左右的圖（pMBox、pMSky）
-  const blend = { color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' }, alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' } };
-  const glassP = (f) => mk({ vertex: vsB, fragment: { module, entryPoint: 'fsGlass', targets: [{ format: f, blend }] }, depthStencil: ds('less', false) });
-  const [pPre, pChair, pBox, pSky, pMBox, pMSky, pGlass, pMGlass] = await Promise.all([
-    mk({ vertex: vsB, fragment: { module, entryPoint: 'fsPre', targets: [{ format, writeMask: 0 }] }, depthStencil: ds('less', true) }),
-    mk({ vertex: vsB, fragment: fr('fsChair', format), depthStencil: ds('less', true) }),
-    mk({ vertex: vsB, fragment: fr('fsBox', format), depthStencil: ds('equal', false) }),
-    mk({ vertex: vsS, fragment: fr('fsSky', format), depthStencil: ds('equal', false) }),
-    mk({ vertex: vsB, fragment: fr('fsBox', RF), depthStencil: ds('less', true) }),
-    mk({ vertex: vsS, fragment: fr('fsSky', RF), depthStencil: ds('less-equal', false) }),
-    glassP(format), glassP(RF),
-  ]);
-
   const HEAD = 32, data = new Float32Array(HEAD + MAX_BOXES * 8 + MAX_LINES * 8);
   boxes.forEach((b, k) => data.set(b, HEAD + k * 8));
   lines.forEach((l, k) => data.set(l, HEAD + MAX_BOXES * 8 + k * 8));
-  const mkU = () => device.createBuffer({ size: data.byteLength, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
-  const ubuf = mkU(), ubufM = mkU(); // ubufM：畫倒影用的那一份
-  const tex = device.createTexture({ size: [AT.w, AT.h], format: 'rgba8unorm', usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT });
-  const smp = device.createSampler({ magFilter: 'linear', minFilter: 'linear' });
-  const blank = device.createTexture({ size: [1, 1], format: 'rgba8unorm', usage: GPUTextureUsage.TEXTURE_BINDING });
-  const mkBind = (buffer, r) => device.createBindGroup({ layout: bgl, entries: [{ binding: 0, resource: { buffer } }, { binding: 1, resource: tex.createView() }, { binding: 2, resource: smp }, { binding: 3, resource: r.createView() }] });
-  const bindM = mkBind(ubufM, blank);
-  // 依畫布大小配置的材質：多重取樣的顏色與深度、倒影
-  let T2 = null;
-  function targets(w, h, rs) {
-    const rw = Math.max(2, Math.round(w * rs)), rh = Math.max(2, Math.round(h * rs));
-    if (T2 && T2.w === w && T2.h === h && T2.rw === rw) return T2;
-    if (T2) for (const t of T2.all) t.destroy();
-    const RA = GPUTextureUsage.RENDER_ATTACHMENT;
-    const mkT = (size, fmt, sampleCount, usage = RA) => device.createTexture({ size, format: fmt, sampleCount, usage });
-    const color = mkT([w, h], format, MS), depth = mkT([w, h], 'depth24plus', MS);
-    const rColor = mkT([rw, rh], RF, MS), rDepth = mkT([rw, rh], 'depth24plus', MS), rTex = mkT([rw, rh], RF, 1, RA | GPUTextureUsage.TEXTURE_BINDING);
-    T2 = { w, h, rw, rh, color, depth, rColor, rDepth, rTex, bind: mkBind(ubuf, rTex), all: [color, depth, rColor, rDepth, rTex] };
-    return T2;
+
+  let draw, OFF = false;
+  if (device) {
+    window.__gpu = device; // 保留參照，避免被回收
+    device.lost.then((i) => { console.warn('device lost:', i.reason, i.message); onLost(); });
+    device.addEventListener('uncapturederror', (e) => console.error('GPU error:', e.error.message));
+    // ?offscreen：畫到離屏材質再讀回 2D 畫布，給沒有顯示卡、無法呈現 WebGPU 畫布的環境截圖用
+    OFF = qs.has('offscreen');
+    const format = OFF ? 'rgba8unorm' : navigator.gpu.getPreferredCanvasFormat();
+    const ctx = OFF ? canvas.getContext('2d') : canvas.getContext('webgpu');
+    if (!OFF) ctx.configure({ device, format, alphaMode: 'opaque' });
+
+    const module = device.createShaderModule({ code: WGSL });
+    const info = await module.getCompilationInfo();
+    const errs = info.messages.filter((m) => m.type === 'error');
+    if (errs.length) { console.error(errs.map((m) => `${m.lineNum}:${m.linePos} ${m.message}`).join('\n')); return fallback('shader'); }
+    const vbuf = device.createBuffer({ size: V.length * 4, usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST });
+    device.queue.writeBuffer(vbuf, 0, new Float32Array(V));
+    const ibuf = device.createBuffer({ size: Math.ceil(I.length / 2) * 4, usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST });
+    device.queue.writeBuffer(ibuf, 0, new Uint16Array(Math.ceil(I.length / 2) * 2).map((_, k) => I[k] || 0));
+
+    // ---- 繪製流程 ----
+    const bgl = device.createBindGroupLayout({ entries: [
+      { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: {} },
+      { binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: {} },
+      { binding: 2, visibility: GPUShaderStage.FRAGMENT, sampler: {} },
+      { binding: 3, visibility: GPUShaderStage.FRAGMENT, texture: {} },
+    ] });
+    const layout = device.createPipelineLayout({ bindGroupLayouts: [bgl] });
+    const vbl = [{ arrayStride: 36, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }, { shaderLocation: 1, offset: 12, format: 'float32x3' }, { shaderLocation: 2, offset: 24, format: 'float32x3' }] }];
+    const MS = 4, RF = 'rgba16float';
+    const vsB = { module, entryPoint: 'vsBox', buffers: vbl }, vsS = { module, entryPoint: 'vsSky' };
+    const fr = (entryPoint, f) => ({ module, entryPoint, targets: [{ format: f }] });
+    const ds = (depthCompare, depthWriteEnabled) => ({ format: 'depth24plus', depthCompare, depthWriteEnabled });
+    const mk = (o) => device.createRenderPipelineAsync({ layout, multisample: { count: MS }, primitive: { topology: 'triangle-list', cullMode: 'none' }, ...o });
+    // 主畫面：先只寫深度（pPre），椅子（pChair）寫自己的深度，再用「深度相等」上色（pBox），每個像素只算一次；最後補天空
+    // 倒影：同一套幾何上下顛倒畫到一張半解析度左右的圖（pMBox、pMSky）
+    const blend = { color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' }, alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' } };
+    const glassP = (f) => mk({ vertex: vsB, fragment: { module, entryPoint: 'fsGlass', targets: [{ format: f, blend }] }, depthStencil: ds('less', false) });
+    const [pPre, pChair, pBox, pSky, pMBox, pMSky, pGlass, pMGlass] = await Promise.all([
+      mk({ vertex: vsB, fragment: { module, entryPoint: 'fsPre', targets: [{ format, writeMask: 0 }] }, depthStencil: ds('less', true) }),
+      mk({ vertex: vsB, fragment: fr('fsChair', format), depthStencil: ds('less', true) }),
+      mk({ vertex: vsB, fragment: fr('fsBox', format), depthStencil: ds('equal', false) }),
+      mk({ vertex: vsS, fragment: fr('fsSky', format), depthStencil: ds('equal', false) }),
+      mk({ vertex: vsB, fragment: fr('fsBox', RF), depthStencil: ds('less', true) }),
+      mk({ vertex: vsS, fragment: fr('fsSky', RF), depthStencil: ds('less-equal', false) }),
+      glassP(format), glassP(RF),
+    ]);
+    const mkU = () => device.createBuffer({ size: data.byteLength, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+    const ubuf = mkU(), ubufM = mkU(); // ubufM：畫倒影用的那一份
+    const tex = device.createTexture({ size: [AT.w, AT.h], format: 'rgba8unorm', usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT });
+    const smp = device.createSampler({ magFilter: 'linear', minFilter: 'linear' });
+    const blank = device.createTexture({ size: [1, 1], format: 'rgba8unorm', usage: GPUTextureUsage.TEXTURE_BINDING });
+    const mkBind = (buffer, r) => device.createBindGroup({ layout: bgl, entries: [{ binding: 0, resource: { buffer } }, { binding: 1, resource: tex.createView() }, { binding: 2, resource: smp }, { binding: 3, resource: r.createView() }] });
+    const bindM = mkBind(ubufM, blank);
+    // 依畫布大小配置的材質：多重取樣的顏色與深度、倒影
+    let T2 = null;
+    function targets(w, h, rs) {
+      const rw = Math.max(2, Math.round(w * rs)), rh = Math.max(2, Math.round(h * rs));
+      if (T2 && T2.w === w && T2.h === h && T2.rw === rw) return T2;
+      if (T2) for (const t of T2.all) t.destroy();
+      const RA = GPUTextureUsage.RENDER_ATTACHMENT;
+      const mkT = (size, fmt, sampleCount, usage = RA) => device.createTexture({ size, format: fmt, sampleCount, usage });
+      const color = mkT([w, h], format, MS), depth = mkT([w, h], 'depth24plus', MS);
+      const rColor = mkT([rw, rh], RF, MS), rDepth = mkT([rw, rh], 'depth24plus', MS), rTex = mkT([rw, rh], RF, 1, RA | GPUTextureUsage.TEXTURE_BINDING);
+      T2 = { w, h, rw, rh, color, depth, rColor, rDepth, rTex, bind: mkBind(ubuf, rTex), all: [color, depth, rColor, rDepth, rTex] };
+      return T2;
+    }
+
+    // 畫一格。data：這一格填好的資料；o：{ hq, glass, atlasDirty, rs }
+    draw = (data, o) => {
+      device.queue.writeBuffer(ubuf, 0, data);
+      const cw = canvas.width, chh = canvas.height, G = targets(cw, chh, o.rs);
+      data[16] = G.rw; data[17] = G.rh; data[28] = 1; device.queue.writeBuffer(ubufM, 0, data); // 倒影那一份：解析度換成倒影圖的大小
+      if (o.atlasDirty) device.queue.copyExternalImageToTexture({ source: atlas }, { texture: tex }, [AT.w, AT.h]);
+
+      const enc = device.createCommandEncoder();
+      const rt = OFF ? device.createTexture({ size: [cw, chh], format, usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC }) : null;
+      const att = (view, resolveTarget) => ({ view, resolveTarget, loadOp: 'clear', storeOp: 'discard', clearValue: [0, 0, 0, 1] });
+      const dep = (t) => ({ view: t.createView(), depthClearValue: 1, depthLoadOp: 'clear', depthStoreOp: 'discard' });
+      // 一、地面倒影：場景上下顛倒畫一次。高畫質連作業中心的小件一起倒映，低畫質只倒映大件
+      let pass = enc.beginRenderPass({ colorAttachments: [att(G.rColor.createView(), G.rTex.createView())], depthStencilAttachment: dep(G.rDepth) });
+      pass.setBindGroup(0, bindM); pass.setVertexBuffer(0, vbuf); pass.setIndexBuffer(ibuf, 'uint16');
+      pass.setPipeline(pMBox); pass.drawIndexed(o.hq ? nIdxBoxes : nIdxOuter);
+      pass.setPipeline(pMSky); pass.draw(3);
+      if (o.glass && o.hq) { pass.setPipeline(pMGlass); pass.drawIndexed(nIdxGlass, 1, nIdxGlass0); }
+      pass.end();
+      // 二、主畫面
+      pass = enc.beginRenderPass({ colorAttachments: [att(G.color.createView(), (OFF ? rt : ctx.getCurrentTexture()).createView())], depthStencilAttachment: dep(G.depth) });
+      pass.setBindGroup(0, G.bind); pass.setVertexBuffer(0, vbuf); pass.setIndexBuffer(ibuf, 'uint16');
+      pass.setPipeline(pPre); pass.drawIndexed(nIdxMain);
+      pass.setPipeline(pChair); pass.drawIndexed(36, 1, nIdxMain);
+      pass.setPipeline(pBox); pass.drawIndexed(nIdxMain);
+      pass.setPipeline(pSky); pass.draw(3);
+      if (o.glass) { pass.setPipeline(pGlass); pass.drawIndexed(nIdxGlass, 1, nIdxGlass0); } // 半透明的玻璃板疊在最上面
+      pass.end();
+      let rb = null; const bpr = Math.ceil(cw * 4 / 256) * 256;
+      if (OFF) { rb = device.createBuffer({ size: bpr * chh, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ }); enc.copyTextureToBuffer({ texture: rt }, { buffer: rb, bytesPerRow: bpr }, [cw, chh]); }
+      device.queue.submit([enc.finish()]);
+      if (OFF) rb.mapAsync(GPUMapMode.READ).then(() => {
+        const src = new Uint8Array(rb.getMappedRange()), img = ctx.createImageData(cw, chh);
+        for (let y = 0; y < chh; y++) img.data.set(src.subarray(y * bpr, y * bpr + cw * 4), y * cw * 4);
+        ctx.putImageData(img, 0, 0); rb.unmap(); rb.destroy(); rt.destroy(); window.__done = true;
+      });
+    };
+  } else {
+    const geo = { V, I, nIdxOuter, nIdxBoxes, nIdxMain, nIdxGlass0, nIdxGlass };
+    const g = await initGL(canvas, geo, atlas, AT, onLost).catch((e) => { console.error(e); return null; });
+    if (!g) return fallback('no webgl2');
+    draw = g.draw;
   }
+  window.__api = document.body.dataset.api = device ? 'webgpu' : 'webgl2';
 
   // 畫質分兩級：高＝地面做完整的一次反射；低＝反射只看大件、不算逐燈光照，解析度上限也低一點
   // 手機一開始就用低畫質；其他裝置先用高畫質，跑不動再自動換成低畫質（不會自己換回去）。?q=high／low 可以固定
@@ -466,41 +519,9 @@ async function start() {
     data.set([p[0], p[1], p[2], time, f[0], f[1], f[2], tanH, r[0], r[1], r[2], aspect, up[0], up[1], up[2], warmOn,
       canvas.width, canvas.height, boxes.length, lines.length, T, AT.split / AT.h, AT.right / AT.h, 0, nOuter, glassOn, hq ? 1 : 0, 0, 0, riseP, 0, 0]);
     GL.forEach((g, k) => { const o = HEAD + MAX_BOXES * 8 + g.li * 8, rk = riseK(k); data[o + 3] = 1.3 * rk; data[o + 7] = -0.45 * rk; });
-    device.queue.writeBuffer(ubuf, 0, data);
-    const cw = canvas.width, chh = canvas.height, G = targets(cw, chh, hq ? 0.6 : 0.5);
-    data[16] = G.rw; data[17] = G.rh; data[28] = 1; device.queue.writeBuffer(ubufM, 0, data); // 倒影那一份：解析度換成倒影圖的大小
     drawAtlas();
-    if (atlasDirty && !qs.has('noatlas')) { device.queue.copyExternalImageToTexture({ source: atlas }, { texture: tex }, [AT.w, AT.h]); atlasDirty = false; }
-
-    const enc = device.createCommandEncoder();
-    const rt = OFF ? device.createTexture({ size: [cw, chh], format, usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC }) : null;
-    const att = (view, resolveTarget) => ({ view, resolveTarget, loadOp: 'clear', storeOp: 'discard', clearValue: [0, 0, 0, 1] });
-    const dep = (t) => ({ view: t.createView(), depthClearValue: 1, depthLoadOp: 'clear', depthStoreOp: 'discard' });
-    // 一、地面倒影：場景上下顛倒畫一次。高畫質連作業中心的小件一起倒映，低畫質只倒映大件
-    let pass = enc.beginRenderPass({ colorAttachments: [att(G.rColor.createView(), G.rTex.createView())], depthStencilAttachment: dep(G.rDepth) });
-    pass.setBindGroup(0, bindM); pass.setVertexBuffer(0, vbuf); pass.setIndexBuffer(ibuf, 'uint16');
-    pass.setPipeline(pMBox); pass.drawIndexed(hq ? nIdxBoxes : nIdxOuter);
-    pass.setPipeline(pMSky); pass.draw(3);
-    const glassOn2 = riseP > 0;
-    if (glassOn2 && hq) { pass.setPipeline(pMGlass); pass.drawIndexed(nIdxGlass, 1, nIdxGlass0); }
-    pass.end();
-    // 二、主畫面
-    pass = enc.beginRenderPass({ colorAttachments: [att(G.color.createView(), (OFF ? rt : ctx.getCurrentTexture()).createView())], depthStencilAttachment: dep(G.depth) });
-    pass.setBindGroup(0, G.bind); pass.setVertexBuffer(0, vbuf); pass.setIndexBuffer(ibuf, 'uint16');
-    pass.setPipeline(pPre); pass.drawIndexed(nIdxMain);
-    pass.setPipeline(pChair); pass.drawIndexed(36, 1, nIdxMain);
-    pass.setPipeline(pBox); pass.drawIndexed(nIdxMain);
-    pass.setPipeline(pSky); pass.draw(3);
-    if (glassOn2) { pass.setPipeline(pGlass); pass.drawIndexed(nIdxGlass, 1, nIdxGlass0); } // 半透明的玻璃板疊在最上面
-    pass.end();
-    let rb = null; const bpr = Math.ceil(cw * 4 / 256) * 256;
-    if (OFF) { rb = device.createBuffer({ size: bpr * chh, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ }); enc.copyTextureToBuffer({ texture: rt }, { buffer: rb, bytesPerRow: bpr }, [cw, chh]); }
-    device.queue.submit([enc.finish()]);
-    if (OFF) rb.mapAsync(GPUMapMode.READ).then(() => {
-      const src = new Uint8Array(rb.getMappedRange()), img = ctx.createImageData(cw, chh);
-      for (let y = 0; y < chh; y++) img.data.set(src.subarray(y * bpr, y * bpr + cw * 4), y * cw * 4);
-      ctx.putImageData(img, 0, 0); rb.unmap(); rb.destroy(); rt.destroy(); window.__done = true;
-    });
+    const newAtlas = atlasDirty && !qs.has('noatlas'); if (newAtlas) atlasDirty = false;
+    draw(data, { hq, glass: riseP > 0, atlasDirty: newAtlas, rs: hq ? 0.6 : 0.5 });
 
     // 貼在牆面與櫃檯上的 HTML 標示：用同一台鏡頭做透視
     const kx = (W / 2) / (tanH * aspect), ky = (H / 2) / tanH;
@@ -553,7 +574,7 @@ async function start() {
       }
     }
     if (!window.__ready) { window.__ready = true; document.body.classList.add('ready'); }
-    if (qs.has('once')) { if (!OFF) device.queue.onSubmittedWorkDone().then(() => { window.__done = true; }); return; }
+    if (qs.has('once')) { if (!OFF) (device ? device.queue.onSubmittedWorkDone() : Promise.resolve()).then(() => { window.__done = true; }); return; }
     if (!dead) requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
