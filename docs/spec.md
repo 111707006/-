@@ -4,6 +4,7 @@
 
 相關文件：
 
+- `docs/prompt.md`：仿照上游提示詞寫法的精簡版，可直接交給實作的工作階段執行。本文件是它的細節與理由。
 - `CONTEXT.md`：詞彙表。本文件的用詞以它為準。
 - `docs/website-brief.md`：品牌、客群、方案、流程的討論結果。本文件不重複其內容，只引用。
 - `docs/reference-teardown.md`：參考網站拆解與 Abyssal Garden 原始碼研究。
