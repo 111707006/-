@@ -8,8 +8,9 @@
 <style>
 /* The class on <body> is the state of the page:
    l = loading, m = menu, g = in the scene (g p while the mouse is captured), l e = failed to start
-   FG STUDIO: g f = 正面模式（電腦螢幕佔滿畫面），h = 指到可互動物件 */
+   FG STUDIO: g f = 正面模式（電腦螢幕佔滿畫面），g w = 內容視窗開著，h = 指到可互動物件 */
 html { background: #03131c; }
+[hidden] { display: none !important; }
 body {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%; margin: 0; overflow: hidden;
   background: radial-gradient(#0b3a4d, #03131c 70%);
@@ -31,20 +32,32 @@ body:not(.g) canvas { filter: blur(1vmax) brightness(.5); transform: scale(1.06)
 
 /* menu: the loading bar and the buttons share one grid cell, so nothing jumps when they swap */
 #m {
-  position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: min(2.2em, 6vmin);
+  position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: min(1.1em, 3vmin);
   padding: 1em 1em 4.5em; text-align: center; background: radial-gradient(#03131c00 30%, #03131ccc);
   transition: opacity .5s, visibility .5s;
 }
 .g #m, .m #l, .l #g { opacity: 0; visibility: hidden; }
-h1 {
-  margin: 0; font: 900 4.4em/1 system-ui, sans-serif; letter-spacing: .05em; text-transform: uppercase;
-  color: #0000; background: linear-gradient(#fff 25%, #7ff3ff 60%, #14a9c4);
-  -webkit-background-clip: text; background-clip: text; filter: drop-shadow(0 .06em .2em #000c);
+/* 載入畫面就是第一屏資訊：品牌名、FG 拆開成 For God 的開場動畫（main.js 開頭，只動 transform 與 opacity，
+   世界生成佔住主執行緒時也照樣播）、標語、一句話說明、申請品牌試做 */
+h1 { margin: 0; font-size: .85em; letter-spacing: .5em; text-indent: .5em; color: #7ff3ff; }
+#lg { display: flex; align-items: baseline; font: 900 4em/1 system-ui, sans-serif; letter-spacing: .04em; text-transform: uppercase; }
+#lg span {
+  display: block; color: #0000; background: linear-gradient(#fff 25%, #7ff3ff 60%, #14a9c4);
+  -webkit-background-clip: text; background-clip: text; will-change: transform, opacity;
+}
+#lg span:nth-child(even) { font-size: .62em; }
+#lg span:nth-child(3) { margin-left: .28em; }
+#sg { font-size: 1.45em; line-height: 1.3; letter-spacing: .08em; text-wrap: balance; text-shadow: 0 .1em .4em #000c; }
+#ds { max-width: 30em; font-weight: 600; color: #bfeef5; text-wrap: balance; }
+.gb, #wp .gb {
+  background: var(--gold); color: #1c1400; text-transform: none; text-shadow: none; letter-spacing: .1em;
+  box-shadow: inset 0 -.2em #0003, 0 .3em 1em #0009;
 }
 p { margin: 0; }
 #a { display: grid; width: 27em; max-width: 100%; }
 #a > * { grid-area: 1/1; transition: opacity .8s, visibility .8s; }
 #s, #w, #q, #k, #h { font-size: .8em; letter-spacing: .12em; text-transform: uppercase; }
+#d.r .d0, #d:not(.r) .d1 { display: none; }
 #w { margin-top: 1.2em; color: #7ff3ff; text-wrap: balance; }
 
 /* loading bar */
@@ -75,9 +88,18 @@ button:active, a:active { transform: translateY(.1em); filter: brightness(.9); }
   box-shadow: inset 0 -.2em #0003, 0 0 2em #19c3d6b3;
 }
 
-/* GitHub and Ko-fi: always at the bottom of the menu, in their own colours */
-#f { position: absolute; left: 0; right: 0; bottom: 1.5em; display: flex; justify-content: center; gap: 1em; font-size: .8em; }
-a + a { background: #ff5e5b; color: #fff; }
+/* 矮的畫面（橫拿的手機，或直拿時整頁轉成橫的）：選單縮緊，才放得下 */
+@media (max-height: 30em) and (orientation: landscape), (max-width: 30em) and (orientation: portrait) and (pointer: coarse) {
+  #m { gap: .45em; padding: .6em 1em 3.4em; }
+  #lg { font-size: 2.3em; }
+  #sg { font-size: 1.15em; }
+  #g { gap: .5em; }
+  #d { padding: .55em; }
+  #f { bottom: .7em; }
+}
+/* 選單底部：場景的出處與語言切換 */
+#f { position: absolute; left: 0; right: 0; bottom: 1.2em; display: flex; justify-content: center; gap: 1em; font-size: .7em; }
+#f > * { padding: .6em 1em; background: #03222dd9; box-shadow: inset 0 0 0 1px #7ff3ff80; color: #e8fbff; text-transform: none; }
 svg { width: 1.5em; height: 1.5em; fill: currentColor; }
 
 /* dark plates under the dive button: detail level, list of controls, touch hint */
@@ -85,7 +107,7 @@ svg { width: 1.5em; height: 1.5em; fill: currentColor; }
 
 /* detail level: three buttons in a row, the current one lit */
 #q { display: flex; align-items: center; gap: .4em; padding: .4em; }
-#q span { flex: 1; color: #7ff3ff; }
+#q > span { flex: 1; color: #7ff3ff; }
 #q button { flex: 1.2; padding: .7em 0; background: none; box-shadow: none; color: #e8fbff; }
 #q button:hover { background: #7ff3ff33; }
 #q .on { background: linear-gradient(#9ff6ff, #19c3d6); box-shadow: inset 0 -.2em #0003; color: #03222d; pointer-events: none; }
@@ -94,6 +116,7 @@ svg { width: 1.5em; height: 1.5em; fill: currentColor; }
 #k { display: flex; justify-content: center; gap: 2em; text-align: left; }
 #k p { display: grid; grid-template-columns: auto auto; align-content: start; align-items: center; gap: .55em .9em; }
 #k p + p { padding-left: 2em; border-left: 2px solid #7ff3ff40; }
+#k span { white-space: nowrap; }
 #k i { display: flex; justify-self: end; align-items: center; gap: .25em; font-style: normal; }
 #k b {
   min-width: 1.1em; padding: .2em .5em; border-radius: .35em; background: #e8fbff;
@@ -115,7 +138,7 @@ svg { width: 1.5em; height: 1.5em; fill: currentColor; }
 .g #o { display: flex; }
 .p #o { display: none; }
 #i {
-  position: absolute; top: 1em; left: 1.2em; margin: 0; font: .8em/1.6 ui-monospace, Consolas, monospace;
+  position: absolute; bottom: 1em; left: 1.2em; margin: 0; font: .8em/1.6 ui-monospace, Consolas, monospace;
   white-space: pre-wrap; text-shadow: 0 1px 4px #000; pointer-events: none;
 }
 
@@ -147,6 +170,17 @@ svg { width: 1.5em; height: 1.5em; fill: currentColor; }
 /* 直式影片完整顯示、左右留黑、不裁切 */
 #tvv { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
 .boot #tvv, .boot #tc { visibility: hidden; }
+/* 資訊電腦：螢幕裡一個復古電腦視窗，一句一窗 */
+#ti { position: absolute; inset: 7% 8%; display: none; flex-direction: column; border: .12em solid #9dffb0; background: #03170fe6; color: #9dffb0; text-shadow: 0 0 .5em #3cff6a80; }
+.info #ti { display: flex; }
+.info #tvv, .info #tc { visibility: hidden; }
+#th { display: flex; justify-content: space-between; padding: .25em .7em; background: #9dffb0; color: #03170f; text-shadow: none; letter-spacing: .1em; }
+#tw { flex: 1; min-height: 0; overflow: auto; display: grid; align-content: center; padding: .6em 1.4em; -webkit-user-select: text; user-select: text; }
+#tw h4 { margin: 0 0 .5em; font-size: 1.7em; line-height: 1.25; }
+#tw p { font-size: 1.15em; line-height: 1.6; }
+#tf { display: flex; justify-content: flex-end; gap: .6em; padding: .5em .7em; }
+#tf button { padding: .25em .9em; border-radius: .2em; background: #03131cd9; box-shadow: inset 0 0 0 1px var(--gold); font: inherit; color: var(--gold); }
+#tf button:disabled { opacity: .3; pointer-events: none; }
 #tb { position: absolute; inset: 0; margin: 0; padding: 1.4em 1.8em; color: #9dffb0; text-shadow: 0 0 .5em #3cff6a; white-space: pre-wrap; display: none; }
 .boot #tb { display: block; }
 #tb::after { content: '█'; animation: bl .5s steps(2) infinite; }
@@ -185,52 +219,323 @@ svg { width: 1.5em; height: 1.5em; fill: currentColor; }
   background: #03131cd9; box-shadow: inset 0 0 0 2px var(--gold), 0 .3em 1em #0009; color: var(--gold); font-size: 1.2em;
 }
 .f #o { display: none; }
+/* 內容視窗：一張從寶箱裡拿出來的舊藏寶圖。紙的紋理是內嵌的 SVG 雜訊，邊緣是撕過的，四周燒焦發黑，有摺痕與水漬；
+   字是墨水寫的：中文用楷體，英文用老式的襯線體。中英兩個版本都在 HTML 裡，body 的 data-l 決定顯示哪一個 */
+body[data-l=en] .zh, body:not([data-l=en]) .en { display: none; }
+.w canvas { filter: blur(.3vmax) brightness(.62); }
+#wn {
+  position: absolute; inset: 0; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); place-items: center; padding: 1em; background: #03131c59;
+  visibility: hidden; opacity: 0; transition: opacity .25s, visibility .25s;
+}
+#wn.on { visibility: visible; opacity: 1; }
+#ww {
+  display: flex; width: min(47em, 100%); max-height: 100%; filter: drop-shadow(0 1em 1.6em #000c);
+  transform: scale(.9) rotate(-3deg) translateY(1em); transition: transform .3s cubic-bezier(.2, 1.4, .4, 1);
+}
+#wn.on #ww { transform: rotate(-.7deg); }
+#wp {
+  --ink: #2c1808; --red: #8e2416;
+  position: relative; flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; color: var(--ink); text-shadow: 0 0 1px #2c180866;
+  clip-path: polygon(0.0% 0.6%, 3.8% 0.4%, 7.7% 0.2%, 11.5% 0.8%, 15.4% 0.1%, 19.2% 0.7%, 23.1% 0.5%, 26.9% 0.1%, 30.8% 0.7%, 34.6% 0.0%, 38.5% 0.6%, 42.3% 0.1%, 46.2% 0.1%, 50.0% 0.6%, 53.8% 1.1%, 57.7% 0.2%, 61.5% 0.3%, 65.4% 0.8%, 69.2% 1.2%, 73.1% 0.8%, 76.9% 0.5%, 80.8% 1.3%, 84.6% 0.1%, 88.5% 1.1%, 92.3% 0.4%, 96.2% 0.2%, 99.4% 0.0%, 99.8% 5.6%, 99.6% 11.1%, 98.9% 16.7%, 99.8% 22.2%, 99.2% 27.8%, 99.2% 33.3%, 99.5% 38.9%, 99.3% 44.4%, 99.9% 50.0%, 99.9% 55.6%, 99.7% 61.1%, 99.1% 66.7%, 99.4% 72.2%, 99.6% 77.8%, 99.2% 83.3%, 99.4% 88.9%, 99.6% 94.4%, 100.0% 99.4%, 96.2% 99.0%, 92.3% 99.1%, 88.5% 99.7%, 84.6% 99.3%, 80.8% 99.3%, 76.9% 98.9%, 73.1% 99.1%, 69.2% 99.6%, 65.4% 98.7%, 61.5% 99.8%, 57.7% 99.5%, 53.8% 99.0%, 50.0% 99.8%, 46.2% 99.4%, 42.3% 99.9%, 38.5% 99.1%, 34.6% 99.0%, 30.8% 99.3%, 26.9% 98.9%, 23.1% 99.6%, 19.2% 99.1%, 15.4% 99.2%, 11.5% 99.2%, 7.7% 99.4%, 3.8% 98.9%, 0.6% 100.0%, 1.2% 94.4%, 0.6% 88.9%, 0.9% 83.3%, 0.1% 77.8%, 0.9% 72.2%, 0.8% 66.7%, 1.3% 61.1%, 1.1% 55.6%, 0.4% 50.0%, 0.5% 44.4%, 0.9% 38.9%, 0.0% 33.3%, 0.6% 27.8%, 0.2% 22.2%, 0.2% 16.7%, 0.1% 11.1%, 1.0% 5.6%);
+  background:
+    linear-gradient(90deg, #0000 33%, #2c180826 33.2%, #fff3 33.5%, #0000 34%, #0000 66%, #2c180826 66.2%, #fff3 66.5%, #0000 67%),
+    linear-gradient(#0000 49.4%, #2c180826 49.7%, #fff3 50.1%, #0000 50.8%),
+    radial-gradient(ellipse 18% 14% at 82% 78%, #4a260c40, #0000 70%), radial-gradient(ellipse 12% 16% at 12% 30%, #4a260c33, #0000 70%),
+    radial-gradient(ellipse 9% 7% at 58% 12%, #4a260c33, #0000 70%),
+    radial-gradient(ellipse at center, #0000 52%, #3b1f0880 86%, #1e0e03d9 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.035 .9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .18 0 0 0 0 .07 0 0 0 .5 -.08'/%3E%3C/filter%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .25 0 0 0 0 .14 0 0 0 0 .05 0 0 0 .4 0'/%3E%3C/filter%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .1 0 0 0 0 .03 0 0 0 1.5 -.62'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23b)'/%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E"),
+    linear-gradient(160deg, #cda66a, #b88c50 55%, #a57a42);
+  font-weight: 600; letter-spacing: 0; -webkit-user-select: text; user-select: text;
+}
+#wp { font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, 'DFKai-SB', 'BiauKai', 'Kaiti TC', 'KaiTi', 'STKaiti', serif; }
+#wp .zh { font-family: 'DFKai-SB', 'BiauKai', 'Kaiti TC', 'KaiTi', 'STKaiti', serif; }
+#wp .en { font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif; }
+/* 羅盤：右上角淡淡的一個 */
+#wd { position: absolute; right: 1.2em; bottom: 1em; width: 7.5em; height: 7.5em; fill: none; stroke: var(--ink); opacity: .32; pointer-events: none; }
+#wh { display: flex; align-items: center; gap: .6em; margin: 0 2em; padding: 1.5em 0 .5em; border-bottom: 2px solid var(--ink); border-radius: 0 0 60% 40% / 0 0 6px 4px; }
+#wt { flex: 1; margin: 0; font-size: 1.9em; font-weight: 700; line-height: 1.1; letter-spacing: .3em; }
+#wt .en { font-style: italic; letter-spacing: .12em; }
+#wt::before, #wt::after { content: ' ✦ '; font-size: .5em; vertical-align: middle; opacity: .7; }
+#wl, #wx {
+  height: 2em; min-width: 2em; padding: 0 .6em; border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px; background: none; color: var(--ink);
+  box-shadow: inset 0 0 0 2px var(--ink); font-size: .95em; letter-spacing: .08em; text-transform: none; text-shadow: none;
+}
+#wc { position: relative; min-height: 0; overflow: auto; padding: 1.2em 2em 2em; }
+#wc > div { display: grid; gap: 1.1em; }
+#wc h3 { margin: 0 0 .2em; font-size: 1.35em; font-weight: 700; line-height: 1.2; letter-spacing: .08em; }
+#wc h3 .en { font-variant: small-caps; letter-spacing: .1em; }
+#wc p { font-size: 1em; line-height: 1.55; }
+#wc p .en { font-style: italic; }
+/* 三個方案像圖上的三個地點，用虛線的航線連起來；推薦的那個打一個紅色的叉 */
+.pl { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2em; }
+.pl section, .tr { position: relative; padding: .9em 1em; border: 2px solid var(--ink); border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px; }
+.pl section:nth-child(2) { border-radius: 15px 225px 15px 255px / 255px 15px 225px 15px; }
+.pl section + section::before {
+  content: ''; position: absolute; right: 100%; top: 50%; width: 2em; margin-right: 2px; border-top: 3px dashed var(--ink); opacity: .8;
+  transform: rotate(-8deg);
+}
+.pl.nc section::before { display: none; }
+.pl .rec { border-color: var(--red); box-shadow: inset 0 0 0 2px #8e241633; background: #8e24160f; }
+.pl em {
+  position: absolute; top: -1.15em; right: -.4em; display: flex; align-items: center; gap: .3em; color: var(--red);
+  font-style: normal; font-weight: 700; letter-spacing: .1em; transform: rotate(7deg); text-shadow: 0 0 1px #8e241699;
+}
+.pl em::before { content: '✕'; font: 900 2.1em/1 system-ui, sans-serif; }
+.pl .pr { margin: .1em 0 .5em; font-size: 1.3em; font-weight: 700; line-height: 1.2; }
+.pl small { font-size: .65em; }
+.tr { display: grid; grid-template-columns: 1fr auto; gap: .3em 1.2em; align-items: center; border-style: dashed; margin-right: 7em; }
+.tr h3, .tr p { grid-column: 1; }
+#wp .gb { justify-self: start; border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px; box-shadow: inset 0 -.2em #0003, 0 0 0 2px var(--ink), 0 .3em .8em #0006; }
+.tr .gb { grid-column: 2; grid-row: 1 / 3; justify-self: auto; }
+#wc .big { font-size: 1.5em; font-weight: 700; line-height: 1.3; }
+#wc .mail { font-size: 1.2em; font-weight: 700; letter-spacing: .04em; }
+/* 合作的步驟：圖上的一條航線，一站一站用虛線連起來，終點打紅色的叉 */
+.rt { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: .7em 0; }
+.rt li { display: flex; align-items: center; }
+.rt li + li::before { content: ''; width: 1.5em; border-top: 3px dashed var(--ink); opacity: .8; transform: rotate(-6deg); }
+.rt li:nth-child(odd) + li::before { transform: rotate(7deg); }
+.rt b { padding: .3em .75em; border: 2px solid var(--ink); border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px; }
+.rt li:last-child b { border-color: var(--red); color: var(--red); }
+.rt li:last-child b::before { content: '✕ '; font: 900 1em/1 system-ui, sans-serif; }
+/* 窄的畫面改成單欄。直拿的手機整頁轉成橫的（見上面），所以不算窄 */
+@media (max-width: 44em) and (orientation: landscape), (max-width: 44em) and (pointer: fine) {
+  #wn { padding: .4em; }
+  #wh { margin: 0 1.2em; }
+  #wc { padding: 1em 1.2em 1.6em; }
+  .pl, .tr { grid-template-columns: 1fr; }
+  .tr { margin-right: 0; }
+  .pl section + section::before { right: auto; left: 50%; top: auto; bottom: 100%; width: 0; height: 2em; margin: 0 0 2px; border-top: 0; border-left: 3px dashed var(--ink); }
+  .tr .gb { grid-column: 1; grid-row: auto; margin-top: .6em; }
+  #wd { width: 5em; height: 5em; opacity: .2; }
+}
+/* 物件名稱後面的提示 */
+#n i { font-style: normal; opacity: .75; }
+/* 潛水日誌：角落常駐的清單，同時是進度、選單與捷徑。選單開著時也在；游標鎖定時點不到，所以變淡 */
+#j { position: absolute; top: .6em; left: .6em; z-index: 3; display: grid; justify-items: start; gap: .3em; font-size: .85em; }
+.l #j, .f #j, .w #j { display: none; }
+.p #j { opacity: .55; }
+#jt { padding: .45em .8em; background: #03222dd9; box-shadow: inset 0 0 0 2px #7ff3ff, 0 .3em 1em #0009; color: #e8fbff; letter-spacing: .08em; text-transform: none; }
+#jn { color: var(--gold); }
+#jl { display: none; margin: 0; padding: .4em; list-style: none; border-radius: .5em; background: #03131cd9; box-shadow: inset 0 0 0 1px #7ff3ff40; }
+#j.on #jl { display: grid; gap: .1em; }
+#jl button {
+  width: 100%; justify-content: flex-start; gap: .5em; padding: .35em .7em; background: none; box-shadow: none; color: var(--gold);
+  font-weight: 700; letter-spacing: .05em; text-transform: none;
+}
+#jl button::before { content: '○'; }
+#jl .ok { color: #cbb98a; }
+#jl .ok::before { content: '✓'; }
+#jl button:hover { background: #ffc94a26; transform: none; }
+/* 常駐聯絡按鈕：任何狀態下都看得到，疊在選單、正面模式與內容視窗上面 */
+#ct { position: absolute; right: .7em; bottom: .7em; z-index: 5; padding: .6em 1.1em; border-radius: 2em; font-size: .9em; }
+/* 一行操作提示，第一次潛入時出現，幾秒後淡出 */
+#hn {
+  position: absolute; left: 50%; top: 11%; transform: translateX(-50%); padding: .45em 1.1em; border-radius: 2em; background: #03131cb3;
+  letter-spacing: .1em; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 1s;
+}
+.g #hn.on { opacity: 1; }
+.tc { display: none; }
+@media (pointer: coarse) { .tc { display: inline; } .pc { display: none; } }
 </style>
 </head>
 <body class=l>
 <canvas id=c></canvas>
 <div id=m>
   <h1>FG STUDIO</h1>
+  <div id=lg aria-label="For God"><span>F</span><span>or</span><span>G</span><span>od</span></div>
+  <p id=sg><span class=zh>先理解你的品牌，再說好你的故事。</span><span class=en>We get to know your brand before we tell your story.</span></p>
+  <p id=ds><span class=zh>為品牌、企業與學校提供長期影像製作。</span><span class=en>Ongoing video production for brands, businesses and schools.</span></p>
+  <a class=gb data-m=trial href=mailto:forgod20232023@gmail.com><span class=zh>申請品牌試做</span><span class=en>Request a brand trial</span></a>
   <div id=a>
-    <div id=l><div id=p><i id=b></i></div><p id=s>Diving…</p><p id=w hidden>Use Google Chrome for optimal experience</p></div>
+    <div id=l><div id=p><i id=b></i></div><p id=s><span class=zh>正在下潛…</span><span class=en>Diving…</span></p><p id=w hidden><span class=zh>建議使用 Google Chrome</span><span class=en>Use Google Chrome for optimal experience</span></p></div>
     <div id=g>
-      <button id=d>Dive in</button>
-      <p id=q><span>Detail</span><button>Low</button><button>Medium</button><button>High</button></p>
+      <button id=d><span class="zh d0">潛入</span><span class="en d0">Dive in</span><span class="zh d1">繼續</span><span class="en d1">Resume</span></button>
+      <p id=q><span><span class=zh>畫質</span><span class=en>Detail</span></span><button><span class=zh>低</span><span class=en>Low</span></button><button><span class=zh>中</span><span class=en>Medium</span></button><button><span class=zh>高</span><span class=en>High</span></button></p>
       <div id=k>
         <p>
-          <i><b>W</b><b>A</b><b>S</b><b>D</b></i>Swim
-          <i><b>Q</b><b>E</b></i>Down / up
-          <i><b>Shift</b></i>Faster
-          <i><b>1</b>–<b>6</b></i>Viewpoints
-          <i><b>Click</b></i>點發光的電腦
+          <i><b>W</b><b>A</b><b>S</b><b>D</b></i><span><span class=zh>游動</span><span class=en>Swim</span></span>
+          <i><b>Q</b><b>E</b></i><span><span class=zh>下潛／上浮</span><span class=en>Down / up</span></span>
+          <i><b>Shift</b></i><span><span class=zh>加速</span><span class=en>Faster</span></span>
+          <i><b>Click</b></i><span><span class=zh>點發光的東西</span><span class=en>Open what glows</span></span>
         </p>
         <p>
-          <i><b>Esc</b></i>Menu
-          <i><b>M</b></i>Mute
-          <i><b>H</b></i>Stats
+          <i><b>Esc</b></i><span><span class=zh>選單／潛水日誌</span><span class=en>Menu / dive log</span></span>
+          <i><b>1</b>–<b>6</b></i><span><span class=zh>視點</span><span class=en>Viewpoints</span></span>
+          <i><b>M</b></i><span><span class=zh>靜音</span><span class=en>Mute</span></span>
+          <i><b>H</b></i><span><span class=zh>效能數據</span><span class=en>Stats</span></span>
         </p>
       </div>
-      <p id=h>Hold to swim forward · slide to steer · second finger to go faster</p>
+      <p id=h><span class=zh>按住往前游 · 滑動轉向 · 第二指加速 · 輕點發光的東西</span><span class=en>Hold to swim forward · slide to steer · second finger to go faster · tap what glows</span></p>
     </div>
   </div>
   <p id=f>
-    <a href=https://github.com/Noniv/abyssal-garden target=_blank><svg viewBox="0 0 16 16"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg>場景改造自 Abyssal Garden（MIT）</a>
+    <a href=https://github.com/Noniv/abyssal-garden target=_blank rel=noopener><svg viewBox="0 0 16 16"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg><span class=zh>場景改造自 Abyssal Garden（MIT）</span><span class=en>Scene adapted from Abyssal Garden (MIT)</span></a>
+    <button class=lg aria-label="切換語言 / Switch language"><span class=zh>English</span><span class=en>繁體中文</span></button>
   </p>
 </div>
-<button id=o aria-label=Menu>≡</button>
+<button id=o aria-label="選單 / Menu">≡</button>
 <pre id=i></pre>
-<!-- FG STUDIO: 準星、物件名稱、電腦正面模式的播放器（對齊場景裡的螢幕） -->
+<!-- FG STUDIO: 準星、物件名稱、操作提示、電腦正面模式的播放器（對齊場景裡的螢幕） -->
 <div id=x></div>
-<p id=n role=status></p>
+<p id=n role=status><span id=nn></span><i><span class=zh>　點擊開啟</span><span class=en> · click to open</span></i></p>
+<p id=hn><span class=pc><span class=zh>WASD 游動　·　點發光的東西　·　Esc 放開游標</span><span class=en>WASD to swim · click what glows · Esc frees the cursor</span></span><span class=tc><span class=zh>按住游動　·　輕點發光的東西</span><span class=en>Hold to swim · tap what glows</span></span></p>
 <div id=tv>
   <div id=ts>
     <video id=tvv playsinline controls preload=none></video>
     <pre id=tb></pre>
     <ul id=tc aria-label=頻道></ul>
+    <!-- 資訊電腦：GVS 是什麼，一句一窗 -->
+    <div id=ti>
+      <div id=th><span>GVS.EXE</span><span id=tn></span></div>
+      <div id=tw>
+        <section>
+          <h4>Global Video Service</h4>
+          <p><span class=zh>GVS 是 FG STUDIO 為品牌、企業與學校提供的長期影像製作服務。</span><span class=en>GVS is FG STUDIO's ongoing video production service for brands, businesses and schools.</span></p>
+        </section>
+        <section hidden>
+          <h4><span class=zh>01　了解產業與受眾</span><span class=en>01 Understand the audience</span></h4>
+          <p><span class=zh>這支影片是給誰看的？看完後，需要知道什麼、能做什麼？</span><span class=en>Who needs to see this, and what should they know or do afterwards?</span></p>
+        </section>
+        <section hidden>
+          <h4><span class=zh>02　對齊品牌方向</span><span class=en>02 Set the visual direction</span></h4>
+          <p><span class=zh>一起確認語氣、畫面風格與每支影片的使用情境。</span><span class=en>Agree on tone, visual style and where each piece will be used.</span></p>
+        </section>
+        <section hidden>
+          <h4><span class=zh>03　依溝通情境製作</span><span class=en>03 Build for the real use case</span></h4>
+          <p><span class=zh>品牌介紹、產品說明、客服與常見問題、教育訓練、校園政策與活動、社群宣傳。</span><span class=en>Brand introductions, product explainers, support &amp; FAQ, training, campus policy &amp; events, social promotion.</span></p>
+        </section>
+        <section hidden>
+          <h4><span class=zh>先理解你的品牌，再說好你的故事。</span><span class=en>We get to know your brand before we tell your story.</span></h4>
+          <p><span class=zh>六種溝通情境的範例影片，都在旁邊的影片電腦裡。</span><span class=en>Sample videos for all six use cases are playing on the video computer next to this one.</span></p>
+        </section>
+      </div>
+      <div id=tf><button id=tp aria-label="上一頁 / Previous">◀</button><button id=tq aria-label="下一頁 / Next">▶</button></div>
+    </div>
     <i id=to></i>
   </div>
-  <button id=tx aria-label=關閉>×</button>
+  <button id=tx aria-label="關閉 / Close">×</button>
 </div>
+<!-- FG STUDIO: 內容視窗（一張舊藏寶圖）。文字都在 HTML 裡，不畫進場景；中文（.zh）與英文（.en）並存。
+     每個寶箱一頁（data-p），加上全部開完的結尾（end）；標題也各有一份 -->
+<div id=wn role=dialog aria-modal=true aria-labelledby=wt>
+  <div id=ww><div id=wp>
+    <svg id=wd viewBox="-50 -50 100 100" stroke-width=1.6 aria-hidden=true><circle r=36 /><circle r=30 stroke-dasharray="2 4" /><path d="M0-46 7-7 46 0 7 7 0 46-7 7-46 0-7-7Z" /><path d="M22-22 5-5M22 22 5 5M-22 22-5 5M-22-22-5-5" /><path d="M-4-34V-44L4-34V-44" stroke-width=2 /></svg>
+    <div id=wh>
+      <h2 id=wt>
+        <span data-p=contact><span class=zh>聯絡</span><span class=en>Contact</span></span>
+        <span data-p=plans><span class=zh>方案</span><span class=en>Plans</span></span>
+        <span data-p=process><span class=zh>合作方式</span><span class=en>How we work</span></span>
+        <span data-p=work><span class=zh>實績</span><span class=en>Credits</span></span>
+        <span data-p=about><span class=zh>關於</span><span class=en>About</span></span>
+        <span data-p=end><span class=zh>航程完成</span><span class=en>Voyage complete</span></span>
+      </h2>
+      <button id=wl class=lg aria-label="切換語言 / Switch language"><span class=zh>EN</span><span class=en>中文</span></button>
+      <button id=wx aria-label="關閉 / Close">×</button>
+    </div>
+    <div id=wc>
+      <div data-p=contact>
+        <p class=big><span class=zh>聊聊你想說清楚的事。</span><span class=en>Tell us what you need to communicate.</span></p>
+        <p><span class=zh>告訴我們你的品牌、希望觸及的受眾，以及想透過影像達成的目標。</span><span class=en>Tell us about your organization, the audience you need to reach and what you want the content to achieve.</span></p>
+        <p class=mail>forgod20232023@gmail.com</p>
+        <a class=gb data-m=contact href=mailto:forgod20232023@gmail.com><span class=zh>寫信給我們</span><span class=en>Email us</span></a>
+      </div>
+      <div data-p=plans>
+        <div class=pl>
+          <section>
+            <h3><span class=zh>單支製作</span><span class=en>Single video</span></h3>
+            <p class=pr><span class=zh>NT$2,000 起<small>／支</small></span><span class=en>From NT$2,000<small> / video</small></span></p>
+            <p><span class=zh>客戶自備素材、按支計價的影像處理。實際報價依影片長度、素材量與修改範圍確認。</span><span class=en>Video finishing priced per video, using materials you supply. The final quote depends on length, source material and revision scope.</span></p>
+          </section>
+          <section class=rec>
+            <em><span class=zh>推薦</span><span class=en>Recommended</span></em>
+            <h3>VIP</h3>
+            <p class=pr><span class=zh>專屬報價</span><span class=en>Private quote</span></p>
+            <p><span class=zh>長期合約方案：簽約至少三個月，每月 15 支，優先排程，月結。</span><span class=en>Long-term contract: at least three months, 15 videos a month, priority scheduling, billed monthly.</span></p>
+          </section>
+          <section>
+            <h3>VIP DOUBLE</h3>
+            <p class=pr><span class=zh>專屬報價</span><span class=en>Private quote</span></p>
+            <p><span class=zh>VIP 的加倍支數版本，每月最多 30 支。</span><span class=en>VIP with double the volume: up to 30 videos a month.</span></p>
+          </section>
+        </div>
+        <p><span class=zh>到場攝影：專屬報價。</span><span class=en>On-site filming: private quote.</span></p>
+        <div class=tr>
+          <h3><span class=zh>品牌試做</span><span class=en>Brand trial</span></h3>
+          <p><span class=zh>長期合作前，先安排 1–3 支付費的單支製作，確認風格與合作流程。收到素材後開始製作。</span><span class=en>Before a long-term commitment, start with 1–3 paid single videos to check the style and the workflow. Production starts once we receive your materials.</span></p>
+          <a class=gb data-m=trial href=mailto:forgod20232023@gmail.com><span class=zh>申請品牌試做</span><span class=en>Request a brand trial</span></a>
+        </div>
+      </div>
+      <div data-p=process>
+        <h3><span class=zh>從詢問到交付</span><span class=en>From enquiry to delivery</span></h3>
+        <ol class=rt>
+          <li><b><span class=zh>詢問</span><span class=en>Enquiry</span></b></li>
+          <li><b><span class=zh>確認需求與報價</span><span class=en>Scope &amp; quote</span></b></li>
+          <li><b><span class=zh>合約（NDA 可選）</span><span class=en>Agreement (NDA optional)</span></b></li>
+          <li><b><span class=zh>交付素材（Google Drive）</span><span class=en>Send materials (Google Drive)</span></b></li>
+          <li><b><span class=zh>製作</span><span class=en>Production</span></b></li>
+          <li><b><span class=zh>最多兩次修改</span><span class=en>Up to two revisions</span></b></li>
+          <li><b><span class=zh>交付</span><span class=en>Delivery</span></b></li>
+        </ol>
+        <div class="pl nc">
+          <section>
+            <h3><span class=zh>正式合約</span><span class=en>Project agreement</span></h3>
+            <p><span class=zh>每項合作皆簽訂正式合約，確認服務範圍、交付項目、時程及雙方責任。</span><span class=en>Every project is covered by a written agreement confirming scope, deliverables, timeline and responsibilities.</span></p>
+          </section>
+          <section>
+            <h3><span class=zh>NDA 可選</span><span class=en>Optional NDA</span></h3>
+            <p><span class=zh>保密協議可以選擇簽或不簽，保障機密資訊、專案素材及尚未公開的內容。</span><span class=en>You choose whether to sign a non-disclosure agreement covering confidential information, project materials and unreleased content.</span></p>
+          </section>
+          <section>
+            <h3><span class=zh>公開與否由你決定</span><span class=en>Your choice on public use</span></h3>
+            <p><span class=zh>作品集展示與品牌推廣分開選擇，均可不同意，且不影響合作。</span><span class=en>Portfolio display and brand promotion are separate, optional permissions. You may decline either without affecting the service.</span></p>
+          </section>
+        </div>
+      </div>
+      <div data-p=work>
+        <h3><span class=zh>合作實績與製作紀錄</span><span class=en>Credits &amp; experience</span></h3>
+        <div class="pl nc">
+          <section>
+            <h3>MTV</h3>
+            <p><span class=zh>播出：《顏牧》、《NEW GAME》、《Nothing More Nothing Less》</span><span class=en>Broadcast: Pastor Yen, NEW GAME, Nothing More Nothing Less</span></p>
+          </section>
+          <section>
+            <h3>KKBOX</h3>
+            <p><span class=zh>《顏牧》收錄於 KKBOX</span><span class=en>Pastor Yen · available on KKBOX</span></p>
+          </section>
+          <section>
+            <h3>Netflix</h3>
+            <p><span class=zh>《巔峰舞者》・與音樂製作團隊成員合作</span><span class=en>巔峰舞者 · collaboration with members of the music production team</span></p>
+          </section>
+        </div>
+        <p><span class=zh>企業形象影片、商業影像、MV 與活動紀錄，完整作品在 YouTube。</span><span class=en>Brand films, commercial work, music videos and event coverage: the full archive is on YouTube.</span></p>
+        <a class=gb href="https://www.youtube.com/playlist?list=PLMabb_z7Xf3PWg7ea0iKbc9KkiB-jatam" target=_blank rel=noopener><span class=zh>完整影像作品集</span><span class=en>Full film archive</span></a>
+      </div>
+      <div data-p=about>
+        <p class=big><span class=zh>FG 代表 For God。</span><span class=en>FG stands for For God.</span></p>
+        <p><span class=zh>我們以作品實踐信仰，將一切榮耀歸於神。我們提供企業形象影片、商業影像、MV、活動紀錄及音樂製作合作。GVS 是我們為有長期內容需求的企業與機構提供的影像服務。</span><span class=en>Our work is an expression of our faith. All glory to God. We produce brand films, commercial work, music videos and event coverage. GVS is our service for organizations that need a production partner over time.</span></p>
+      </div>
+      <div data-p=end>
+        <p class=big><span class=zh>先理解你的品牌，再說好你的故事。</span><span class=en>We get to know your brand before we tell your story.</span></p>
+        <p><span class=zh>兩台電腦與五個寶箱你都看過了。接下來，換我們認識你的品牌。</span><span class=en>You have seen both computers and all five chests. Next, let us get to know your brand.</span></p>
+        <a class=gb data-m=trial href=mailto:forgod20232023@gmail.com><span class=zh>申請品牌試做</span><span class=en>Request a brand trial</span></a>
+      </div>
+    </div>
+  </div></div>
+</div>
+<!-- FG STUDIO: 潛水日誌（角落常駐：進度、選單與捷徑）與常駐聯絡按鈕。順序與 main.js 的 IDS 相同 -->
+<nav id=j aria-label="潛水日誌 / Dive log">
+  <button id=jt><span class=zh>潛水日誌</span><span class=en>Dive log</span><b id=jn>0／7</b></button>
+  <ol id=jl>
+    <li><button><span class=zh>影片電腦</span><span class=en>Video computer</span></button></li>
+    <li><button><span class=zh>資訊電腦</span><span class=en>Info computer</span></button></li>
+    <li><button><span class=zh>聯絡寶箱</span><span class=en>Contact chest</span></button></li>
+    <li><button><span class=zh>方案寶箱</span><span class=en>Plans chest</span></button></li>
+    <li><button><span class=zh>合作方式寶箱</span><span class=en>How-we-work chest</span></button></li>
+    <li><button><span class=zh>實績寶箱</span><span class=en>Credits chest</span></button></li>
+    <li><button><span class=zh>關於寶箱</span><span class=en>About chest</span></button></li>
+  </ol>
+</nav>
+<a id=ct class=gb data-m=contact href=mailto:forgod20232023@gmail.com><span class=zh>聯絡</span><span class=en>Contact</span></a>
 <script>
 /*SCRIPT*/
 </script>

@@ -622,3 +622,99 @@ function meshComputer() {
   m.tube([[-0.3, 0.06, -0.45], [-0.42, 0.03, -0.58], [-0.68, 0.01, -0.52], [-0.9, -0.01, -0.25], [-1.02, -0.03, 0.05], [-1.2, -0.09, 0.2]], 0.013, 6, false, () => 0.12);
   return m;
 }
+
+// ---------------------------------------------------------------- FG STUDIO: 寶箱
+// 老式的木箱：橫向的木板，四周包著鐵邊，正面三條直的鐵條一路翻過拱形的箱蓋，鐵條上有八角形的鐵花，
+// 正中央是鎖片與鎖孔，兩側有提環，鐵件上釘著鉚釘（樣式參考 Poly Haven 的 Treasure Chest，網格與材質都是程式生成的）。
+// 箱體與箱蓋是兩個網格，箱蓋才能繞著後緣的鉸鍊打開。正面朝 +z，寬度 1，箱體底部在 y = 0；擺放時再放大。
+// aux 在材質 7 用來挑顏色：1 木頭，0.5 鐵件，0 黑（鎖孔），-0.7 被箱裡的光照亮的內側，-1 發光（箱縫與箱內）。
+const CHEST = { hw: 0.5, hd: 0.32, h: CHEST_H, gap: 0.025, rim: 0.035, lid: 0.17 }; // 半寬、半深、箱體高、箱縫、箱蓋的直邊、箱蓋的拱高
+function chestTools(m) {
+  const quad = (a, b, c, d, aux) => m.quad(m.v(a[0], a[1], a[2], aux), m.v(b[0], b[1], b[2], aux), m.v(c[0], c[1], c[2], aux), m.v(d[0], d[1], d[2], aux));
+  const box = (x0, y0, z0, x1, y1, z1, aux, top = true) => {
+    quad([x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], aux); quad([x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], aux);
+    quad([x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1], aux); quad([x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], aux);
+    quad([x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1], aux); if (top) quad([x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0], aux);
+  };
+  // 鉚釘：釘在法線朝 (nx, ny, nz) 的面上的小方塊
+  const rivet = (x, y, z, nx, ny, nz) => { const r = 0.011, t = 0.008, ex = nx ? t : r, ey = ny ? t : r, ez = nz ? t : r; box(x - ex, y - ey, z - ez, x + ex, y + ey, z + ez, 0.5); };
+  // 鐵花：貼在朝 +z（s = 1）或 -z（s = -1）的面上的八角形鐵片
+  const disc = (x, y, z, r, s) => {
+    const t = 0.013 * s, P = [];
+    for (let k = 0; k < 8; k++) { const a = (k + 0.5) / 8 * TAU; P.push([x + r * cos(a), y + r * sin(a)]); }
+    const c = m.v(x, y, z + t, 0.5), T = P.map((p) => m.v(p[0], p[1], z + t, 0.5));
+    for (let k = 0; k < 8; k++) { const a = P[k], b = P[(k + 1) % 8]; m.tri(c, T[k], T[(k + 1) % 8]); quad([a[0], a[1], z + t], [b[0], b[1], z + t], [b[0], b[1], z], [a[0], a[1], z], 0.5); }
+  };
+  return { quad, box, rivet, disc };
+}
+const CHEST_STRAPS = [-0.27, 0, 0.27];
+function meshChest() {
+  const m = new Mesh(), { quad, box, rivet, disc } = chestTools(m), C = CHEST, w = C.hw, d = C.hd, h = C.h, t = 0.035, fl = h - 0.15, b = 0.014, bw = 0.055;
+  // 木箱：沒有頂面；箱口一圈木緣，往下是內壁，底下是發光的一層（箱裡的金光）
+  box(-w, 0, -d, w, h, d, 1, false);
+  const O = [[-w, h, d], [w, h, d], [w, h, -d], [-w, h, -d]], I = [[-w + t, h, d - t], [w - t, h, d - t], [w - t, h, -d + t], [-w + t, h, -d + t]], B = I.map((p) => [p[0], fl, p[2]]);
+  for (let k = 0; k < 4; k++) { quad(O[k], O[(k + 1) % 4], I[(k + 1) % 4], I[k], 1); quad(I[k], I[(k + 1) % 4], B[(k + 1) % 4], B[k], -0.7); }
+  quad(B[0], B[1], B[2], B[3], -1);
+  // 箱縫：木緣內側一圈發光的矮牆，箱蓋蓋著時只從縫裡露出來
+  const S = [[-w + 0.02, d - 0.02], [w - 0.02, d - 0.02], [w - 0.02, -d + 0.02], [-w + 0.02, -d + 0.02]];
+  for (let k = 0; k < 4; k++) { const p = S[k], q = S[(k + 1) % 4]; quad([p[0], h, p[1]], [q[0], h, q[1]], [q[0], h + C.gap, q[1]], [p[0], h + C.gap, p[1]], -1); }
+  // 鐵邊：底一圈、箱口一圈、四個角各一條直的（正面與側面各一片）
+  for (const [y0, y1] of [[0, bw], [h - bw, h]]) {
+    box(-w - b, y0, d, w + b, y1, d + b, 0.5); box(-w - b, y0, -d - b, w + b, y1, -d, 0.5);
+    box(-w - b, y0, -d, -w, y1, d, 0.5); box(w, y0, -d, w + b, y1, d, 0.5);
+  }
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    box(sx > 0 ? w - bw : -w, bw, sz > 0 ? d : -d - b, sx > 0 ? w : -w + bw, h - bw, sz > 0 ? d + b : -d, 0.5);
+    box(sx > 0 ? w : -w - b, bw, sz > 0 ? d - bw : -d, sx > 0 ? w + b : -w, h - bw, sz > 0 ? d : -d + bw, 0.5);
+    for (const y of [0.1, h / 2, h - 0.1]) { rivet(sx * (w - bw / 2), y, sz * (d + b), 0, 0, 1); rivet(sx * (w + b), y, sz * (d - bw / 2), 1, 0, 0); }
+  }
+  // 三條直的鐵條，正面的帶鐵花；正中央是鎖片與鎖孔
+  for (const x of CHEST_STRAPS) {
+    box(x - 0.028, bw, d, x + 0.028, h - bw, d + b * 0.8, 0.5); box(x - 0.028, bw, -d - b * 0.8, x + 0.028, h - bw, -d, 0.5);
+    disc(x, h * 0.3, d, 0.062, 1);
+    if (x) disc(x, h * 0.7, d, 0.062, 1);
+  }
+  disc(0, h - 0.105, d, 0.09, 1);
+  box(-0.011, h - 0.14, d + 0.012, 0.011, h - 0.095, d + 0.0145, 0); box(-0.02, h - 0.1, d + 0.012, 0.02, h - 0.075, d + 0.0145, 0);
+  for (let x = -0.385; x < 0.4; x += 0.11) for (const y of [bw / 2, h - bw / 2]) { rivet(x, y, d + b, 0, 0, 1); rivet(x, y, -d - b, 0, 0, 1); }
+  for (let z = -0.2; z < 0.21; z += 0.1) for (const y of [bw / 2, h - bw / 2]) { rivet(w + b, y, z, 1, 0, 0); rivet(-w - b, y, z, 1, 0, 0); }
+  // 兩側的提環：一塊鐵片，掛著一個 U 形的環
+  for (const sx of [-1, 1]) {
+    const X = sx * (w + b * 0.5), X2 = sx * (w + 0.04);
+    box(sx > 0 ? w : -w - b, h * 0.46, -0.075, sx > 0 ? w + b : -w, h * 0.66, 0.075, 0.5);
+    m.tube([[X, h * 0.58, -0.085], [X2, h * 0.52, -0.09], [X2, h * 0.36, -0.07], [X2, h * 0.31, 0], [X2, h * 0.36, 0.07], [X2, h * 0.52, 0.09], [X, h * 0.58, 0.085]], 0.013, 6, false, () => 0.5);
+  }
+  return m;
+}
+// 箱蓋：原點在鉸鍊（後緣），往 +z 伸到前緣。弧形的拱頂，兩端與三條鐵條包著鐵，前緣中央垂下一片鎖扣
+function meshChestLid() {
+  const m = new Mesh(), { quad, box, rivet } = chestTools(m), C = CHEST, w = C.hw, D = C.hd * 2, rim = C.rim, N = 12, b = 0.014, bw = 0.055;
+  // 拱的剖面（z, y）：一段圓弧，兩端在直邊的頂上
+  const R = (D * D / 4 + C.lid * C.lid) / (2 * C.lid), cy = rim + C.lid - R, th = Math.asin(D / 2 / R);
+  const prof = (k, off) => { const a = -th + 2 * th * k / N; return [D / 2 + (R + off) * sin(a), cy + (R + off) * cos(a)]; };
+  const arch = (x0, x1, off, aux) => {
+    let pa = m.v(x0, 0, prof(0, off)[0], aux), pb = m.v(x1, 0, prof(0, off)[0], aux);
+    for (let k = 0; k <= N + 1; k++) {
+      const p = k > N ? [prof(N, off)[0], 0] : prof(k, off), a = m.v(x0, p[1], p[0], aux), c = m.v(x1, p[1], p[0], aux);
+      m.quad(pa, pb, c, a); pa = a; pb = c;
+    }
+  };
+  arch(-w, w, 0, 1);
+  arch(-w - b, -w + bw, b, 0.5); arch(w - bw, w + b, b, 0.5);
+  for (const x of CHEST_STRAPS) {
+    arch(x - 0.028, x + 0.028, b * 0.8, 0.5);
+    for (const k of [2, 6, 10]) { const p = prof(k, b * 0.8); rivet(x, p[1], p[0], 0, 1, 0); }
+  }
+  for (const sx of [-1, 1]) for (const k of [1, 4, 8, 11]) { const p = prof(k, b); rivet(sx * (w - bw / 2 + b / 2), p[1], p[0], 0, 1, 0); }
+  // 前後緣的鐵邊與鉚釘
+  box(-w - b, 0, D, w + b, rim + 0.02, D + b, 0.5); box(-w - b, 0, -b, w + b, rim + 0.02, 0, 0.5);
+  for (let x = -0.385; x < 0.4; x += 0.11) rivet(x, rim / 2 + 0.01, D + b, 0, 0, 1);
+  // 兩端的側板
+  for (const x of [-w, w]) {
+    const c = m.v(x, 0, D / 2, 1); let p = m.v(x, 0, 0, 1);
+    for (let k = 0; k <= N + 1; k++) { const q = k > N ? [D, 0] : prof(k, 0), v = m.v(x, q[1], q[0], 1); m.tri(c, p, v); p = v; }
+  }
+  quad([-w, 0, 0], [w, 0, 0], [w, 0, D], [-w, 0, D], -0.7); // 內側，被箱裡的光照亮
+  box(-0.04, -0.075, D + b, 0.04, rim + 0.02, D + b + 0.012, 0.5); // 鎖扣
+  return m;
+}

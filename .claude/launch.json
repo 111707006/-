@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "site",
+      "runtimeExecutable": "C:\\Users\\a0900\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+      "runtimeArgs": ["-m", "http.server", "8741", "--bind", "127.0.0.1", "--directory", "C:\\Users\\a0900\\pptg-web"],
+      "port": 8741,
+      "autoPort": false
+    }
+  ]
+}

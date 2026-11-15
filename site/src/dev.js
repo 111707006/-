@@ -36,4 +36,11 @@
       }
     } else if (/Digit[1-6]/.test(e.code)) stop();
   });
+  // FG STUDIO: 給自動化驗證用的入口（從瀏覽器的主控台讀狀態、轉鏡頭、開啟物件），只在 dev.html 裡
+  window.dev = { F, lookAt, activate, pick, closeWin, visit, SPAWN, COMP, COMPS, CH, LAY, P0,
+    // 站在出生點，從進站的方向往右轉 a（弧度），抬頭 p
+    turn: (a, p = -0.12) => { const [x, z] = around(a, 10); lookAt(P0[0], P0[1], P0[2], x, P0[1] + 10 * Math.tan(p), z); F[VX] = F[VY] = F[VZ] = 0; },
+    // 每個物件：從出生點看過去的直線上有沒有岩石擋住
+    seen: () => BOXES.map((B) => { const o = B.o, ty = o.y + 0.8, dx = o.x - P0[0], dy = ty - P0[1], dz = o.z - P0[2], l = hypot(dx, dy, dz); for (let t = 0.6; t < l - 0.8; t += 0.3) if (rock(P0[0] + dx / l * t, P0[1] + dy / l * t, P0[2] + dz / l * t) > 0) return false; return true; }),
+    state: () => ({ hot, win, front, menu, opened: [...opened], chFrac: [...chFrac], chLevel: [...chLevel], W, H }) };
 }

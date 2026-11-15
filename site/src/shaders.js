@@ -188,6 +188,8 @@ const WK = array<vec3f, 10>(vec3f(1., 2., 1.), vec3f(-2., 1., .9), vec3f(3., 1.,
 }
 `;
 
+// FG STUDIO: 寶箱放大的倍數。材質 7 要用它把貼圖座標換回箱子自己的高度，所以定義在這裡
+const CHS = 1.6, CHEST_H = 0.37;
 // ---------------------------------------------------------------- shared scene code
 const S_G = /*wgsl*/`
 struct G { vp: mat4x4f, sm: mat4x4f, cam: vec4f, right: vec4f, up: vec4f, fwd: vec4f, sun: vec4f, res: vec4f, mis: vec4f };
@@ -300,7 +302,7 @@ fn tri(p: vec3f, n: vec3f, s: f32) -> TP {
   let mat = i32(i.m.x + .5); let sd = i.m.y; let fl_ = select(-1., 1., ff);
   let on = normalize(i.on) * fl_; let n0 = normalize(i.n) * fl_;
   let dist = length(i.wp - g.cam.xyz);
-  let ts = select(1., i.m.z, mat >= 2);
+  let ts = select(1., i.m.z, mat >= 2 && mat != 7); // FG STUDIO: 材質 7（寶箱）的 m.z 是光的強度，不是貼圖縮放
   let A = tri(i.op, on, .1 * ts); let B = tri(i.op, on, .43 * ts); let C = tri(i.op, on, 1.9 * ts); let F = tri(i.op, on, 6.7 * ts); let fk = ss(10., 1.5, dist) * f32(mat <= 1);
   let Wd = textureSample(tD, sR, vec2f(i.op.x * .06, (i.op.y + i.op.z) * .7));
   let big = textureSample(tD, sR, i.op.xz * .013 + i.op.y * .021).a;
@@ -370,6 +372,33 @@ fn tri(p: vec3f, n: vec3f, s: f32) -> TP {
     emi = alb * vec3f(.09, .19, .22); // 補一點環境光：正面背著太陽，不補的話整台是黑的
     // 內框（aux = -1）被螢幕照亮
     if (ac < -.9) { alb = vec3f(.035, .035, .04); emi = vec3f(.035, .055, .075) * (.8 + .2 * sin(g.cam.w * .9)); bump = .1; gloss = .5; }
+  } else if (mat == 7) {
+    // FG STUDIO 寶箱：泡過水的老木箱，橫向的木板包著生鏽的鐵件；aux 挑零件（見 world.js 的 meshChest），m.z 是光的強度
+    let ac = i.ao; let lv = i.m.z;
+    let pulse = 1. + .16 * sin(g.cam.w * 1.3) + .05 * sin(g.cam.w * 3.1);
+    // 木板：每片的深淺不同，板與板之間一道深色的縫，木紋順著板子走
+    let py = i.op.y * 5.2 + .2; let pk = hs(floor(py) * 1.37 + sd * 9.); let pf = fract(py);
+    alb = mix(vec3f(.20, .085, .03), vec3f(.62, .30, .10), Wd.b * .65 + pk * .35) * (.6 + .55 * B.h);
+    alb *= .3 + .7 * ss(0., .07, min(pf, 1. - pf));
+    alb = mix(alb, vec3f(.07, .05, .04), ss(.55, .8, Wd.a) * .45);
+    gloss = .18; bump = .55;
+    // 鐵件：深色，凹處與邊緣有橘褐色的鏽
+    if (abs(ac - .5) < .1) {
+      alb = mix(vec3f(.022, .022, .026), vec3f(.20, .08, .03), ss(.5, .75, C.c * .6 + B.c * .5)) * (.6 + .7 * C.h);
+      gloss = .5; bump = .5;
+    }
+    if (abs(ac) < .1) { alb = vec3f(.008); gloss = 0.; }
+    alb = mix(alb, vec3f(.04, .16, .08), ss(.55, .72, B.c * .6 + A.c * .5) * ss(-.3, .5, n0.y) * .25);
+    let silt = ss(.6, .98, n0.y) * (.4 + .6 * B.c) * step(0., ac);
+    alb = mix(alb, vec3f(.17, .19, .16) * (.6 + .6 * B.h), silt * .3);
+    emi = alb * vec3f(.09, .19, .22);
+    // 箱縫的金光照在縫上下的木板與鐵件上。箱體（種子 > .4）的縫在頂上，箱蓋的縫在底下
+    let oy = (i.op.y - sd * 37.) / ${CHS};
+    let sdist = select(${CHEST_H} - oy, oy, sd < .4);
+    emi += alb * vec3f(1., .6, .15) * lv * pulse * exp(-max(sdist, 0.) * 7.) * step(0., ac) * 2.2;
+    // 箱蓋內側與內壁被箱裡的光照亮；箱縫與箱內本身發光
+    if (ac < -.5) { emi += alb * vec3f(1., .62, .14) * lv * pulse * 2.2; }
+    if (ac < -.9) { alb = vec3f(.02, .012, .0); emi = vec3f(1., .66, .16) * lv * pulse * 5.; bump = 0.; gloss = 0.; }
   } else {
     let hue = fract(sd * 5.73);
     alb = mix(vec3f(.80, .08, .10), vec3f(.90, .22, .40), fract(hue * 4.));
@@ -861,5 +890,61 @@ fn quad(i: u32) -> vec2f { return vec2f(f32(i & 1u), f32(i >> 1u)) * 2. - 1.; }
   let a = exp(-d2 * 5.5) * ss(1., .6, d2);
   let tint = mix(vec3f(.42, .62, .85), vec3f(1., .72, .25), i.d.z * .6);
   return vec4f(tint * a * i.e.x * (.035 + .07 * i.d.z) * (1. + .05 * sin(g.cam.w * .9)), 0.);
+}
+`;
+
+// ---------------------------------------------------------------- FG STUDIO: 寶箱的光
+// 三種加法混合的面片，共用一種實例格式：a = 寶箱位置 + 大小，b = 種子、參數、光的等級、目前的強度。
+// 光柱：繞著垂直軸面向鏡頭的細長面片，穿過霧氣，遠處可見。光暈：面向鏡頭的一團金光。光點：從箱子往上飄散。
+const W_CHEST = S_B + /*wgsl*/`
+struct CO { @builtin(position) cp: vec4f, @location(0) uv: vec2f, @location(1) @interpolate(flat) col: vec3f, @location(2) @interpolate(flat) pr: vec4f, @location(3) h: f32 };
+const GOLD = vec3f(1., .68, .17);
+fn quad(i: u32) -> vec2f { return vec2f(f32(i & 1u), f32(i >> 1u)) * 2. - 1.; }
+fn pulse(s: f32) -> f32 { return 1. + .16 * sin(g.cam.w * 1.3 + s) + .05 * sin(g.cam.w * 3.1 + s); }
+@vertex fn vsBeam(@builtin(vertex_index) vi: u32, @location(0) a: vec4f, @location(1) b: vec4f) -> CO {
+  var o: CO; let q = quad(vi);
+  let v = g.cam.xyz - a.xyz; let d = length(v); let s = normalize(vec3f(v.z, 0., -v.x));
+  let w = a.xyz + s * (q.x * b.y) + vec3f(0., (q.y * .5 + .5) * a.w, 0.);
+  o.cp = g.vp * vec4f(w, 1.); o.uv = q; o.h = w.y - a.y;
+  o.col = GOLD * b.z * b.w * pulse(b.x) * exp(-SIG.g * d * .6) * ss(1., 4., length(v.xz));
+  o.pr = vec4f(b.x, a.w, 0., 0.);
+  return o;
+}
+@fragment fn fsBeam(i: CO) -> @location(0) vec4f {
+  let y = i.uv.y * .5 + .5; let x = i.uv.x;
+  let core = exp(-x * x * 14.) * .6 + exp(-x * x * 3.) * .16 * (1. - x * x);
+  let rise = .82 + .18 * sin(y * 26. - g.cam.w * 1.6 + i.pr.x);
+  return vec4f(i.col * core * rise * pow(1. - y, 1.6) * ss(0., .03, y) * .5, 0.);
+}
+@vertex fn vsHalo(@builtin(vertex_index) vi: u32, @location(0) a: vec4f, @location(1) b: vec4f) -> CO {
+  var o: CO; let q = quad(vi);
+  let c = a.xyz + vec3f(0., b.y, 0.); let v = g.cam.xyz - c; let d = length(v);
+  let w = c + v / d * min(.6, d * .3) + (g.right.xyz * q.x + g.up.xyz * q.y) * (a.w * (.75 + .25 * b.w));
+  o.cp = g.vp * vec4f(w, 1.); o.uv = q; o.h = w.y - a.y;
+  o.col = GOLD * b.z * b.w * pulse(b.x) * exp(-SIG.g * d * .6) * ss(.8, 3., d);
+  return o;
+}
+@fragment fn fsHalo(i: CO) -> @location(0) vec4f {
+  let d2 = dot(i.uv, i.uv);
+  return vec4f(i.col * exp(-d2 * 5.) * ss(1., .55, d2) * ss(-.15, .6, i.h) * .07, 0.);
+}
+@vertex fn vsMote(@builtin(vertex_index) vi: u32, @location(0) a: vec4f, @location(1) b: vec4f) -> CO {
+  var o: CO; let q = quad(vi); let t = g.cam.w;
+  let life = fract(t * b.y + b.x); let an = b.x * 61. + t * (.25 + .4 * hs(b.x * 3.)); let r = a.w * (.25 + .45 * hs(b.x * 7.) + life * .5);
+  var p = a.xyz + vec3f(cos(an) * r, a.w * .5 + life * (3.2 + 2.6 * hs(b.x * 11.)), sin(an) * r * .7);
+  p += .08 * vec3f(sin(t * .9 + b.x * 50.), 0., cos(t * .8 + b.x * 90.));
+  let d = length(p - g.cam.xyz);
+  if (dot(p - g.cam.xyz, g.fwd.xyz) < .3) { o.cp = vec4f(0., 0., 2., 1.); return o; }
+  let s0 = .02 + .035 * hs(b.x * 17.); let sz = max(s0, d * .0028);
+  let w = p + (g.right.xyz * q.x + g.up.xyz * q.y) * sz;
+  o.cp = g.vp * vec4f(w, 1.); o.uv = q; o.h = 0.;
+  let tw = .45 + .55 * pow(.5 + .5 * sin(t * (2. + 3. * hs(b.x * 5.)) + b.x * 100.), 2.);
+  let e = s0 / sz;
+  o.col = GOLD * b.z * min(b.w, 2.) * ss(0., .08, life) * pow(1. - life, 1.4) * tw * e * e * exp(-SIG.g * d * .6) * 9.;
+  return o;
+}
+@fragment fn fsMote(i: CO) -> @location(0) vec4f {
+  let r = dot(i.uv, i.uv);
+  return vec4f(min(i.col * exp(-r * 6.) * (1. - ss(.7, 1., r)), vec3f(10.)), 0.);
 }
 `;

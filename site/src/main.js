@@ -3,13 +3,33 @@
 // ============================================================================
 const $ = (id) => document.getElementById(id);
 const canvas = $('c'), info = $('i'), body = document.body;
+// FG STUDIO: 語言。繁中與英文並存，body 的 data-l 決定顯示哪一個。第一次依瀏覽器的語言，切換後記住。
+// 一開始就決定，載入畫面才是對的語言
+let lang = 'zh';
+try { lang = localStorage.fgLang || (/^zh/i.test(navigator.language) ? 'zh' : 'en'); } catch {}
+const SUBJ = { trial: ['申請品牌試做', 'Brand trial request'], contact: ['合作洽談', 'Project enquiry'] };
+function setLang(l) {
+  lang = l === 'en' ? 'en' : 'zh'; body.dataset.l = lang; document.documentElement.lang = lang === 'en' ? 'en' : 'zh-Hant';
+  // 寄信的連結（表單在第四批）：主旨跟著語言
+  for (const a of document.querySelectorAll('a[data-m]')) a.href = 'mailto:forgod20232023@gmail.com?subject=' + encodeURIComponent(SUBJ[a.dataset.m][lang === 'en' ? 1 : 0]);
+}
+setLang(lang);
+for (const b of document.querySelectorAll('.lg')) b.onclick = () => { setLang(lang === 'en' ? 'zh' : 'en'); keep('fgLang', lang); };
+// 開場動畫：FG 兩個字母從中間分開，拆成 For God（約 1.3 秒，每次進站都播）。只動 transform 與 opacity，交給合成器，
+// 世界生成佔住這個執行緒時也照樣播
+{
+  // 位置用版面座標（offsetLeft），直拿的手機整頁轉了 90 度也對
+  const [f, o1, g2, o2] = $('lg').children, mid = (f.offsetLeft + o2.offsetLeft + o2.offsetWidth) / 2;
+  const mv = (el, dx) => el.animate({ transform: [`translateX(${dx}px)`, 'none'] }, { duration: 800, delay: 450, easing: 'cubic-bezier(.6,0,.2,1)', fill: 'backwards' });
+  mv(f, mid - f.offsetWidth - f.offsetLeft); mv(g2, mid - g2.offsetLeft);
+  for (const o of [o1, o2]) o.animate({ opacity: [0, 1] }, { duration: 500, delay: 850, fill: 'backwards' });
+}
 // a phone held upright gets the page turned on its side (see template.html)
 const rot = matchMedia('(orientation:portrait) and (pointer:coarse)');
 // loading bar: each stage glides it to `to` (the share done) over ~`ms` on the compositor, so it moves while this
 // thread is busy
 let loaded = 0, dead; // dead: the graphics device was lost
 const say = (m, to, ms) => {
-  if (!dead) $('s').textContent = m;
   const a = $('b').animate({ transform: [`scaleX(${loaded})`, `scaleX(${to})`] }, { duration: ms, fill: 'forwards', easing: 'cubic-bezier(.3,.5,.5,1)' });
   loaded = to;
   // go on once the animation runs: one not started before the thread gets busy stays stuck (timer: hidden tabs)
@@ -116,6 +136,9 @@ const screenPipe = (vsE, fsE, blend) => device.createRenderPipeline({ layout: pl
   vertex: { module: mScreen, entryPoint: vsE, buffers: [ibScreen] }, fragment: { module: mScreen, entryPoint: fsE, targets: [{ format: HDR, blend }] },
   primitive: { topology: 'triangle-strip' }, depthStencil: { format: DEPTH, depthWriteEnabled: !blend, depthCompare: 'greater' }, multisample: { count: AA } });
 const pScreen = screenPipe('vs', 'fs'), pScreenGlow = screenPipe('vsGlow', 'fsGlow', ADD);
+// FG STUDIO: 寶箱的光（光柱、光暈、往上飄的光點），加法混合，實例格式與氣泡相同
+const mChest = mod(W_CHEST);
+const pBeam = scenePipe(mChest, 'vsBeam', 'fsBeam', [ibBub], { strip: true, blend: ADD }), pHalo = scenePipe(mChest, 'vsHalo', 'fsHalo', [ibBub], { strip: true, blend: ADD }), pMote = scenePipe(mChest, 'vsMote', 'fsMote', [ibBub], { strip: true, blend: ADD });
 const pSolidSh = shadowPipe(mSolid, 'vs', [vbSolid, ibSolid]), pTerrSh = shadowPipe(mSolid, 'vs', [vbSolid, ibSolid], { cull: 'front' });
 const pLeafSh = shadowPipe(mLeaf, 'vs', [ibLeaf], { strip: true, constants: { ROWS: 3 } });
 
@@ -278,9 +301,18 @@ const Wd = makeWorld(D, T, flyPts, POSES);
 for (const p of POSES) p[1] += Wd.gy(p[0], p[2]);
 // FG STUDIO: 影片電腦，在出生點（第一個視點）正前方，正面朝向出生點，放大 CSCALE 倍，往後仰 TILT（陷在泥沙裡，
 // 正面也因此照得到一點陽光與焦散）
-const CSCALE = 3.2, TILT = 0.12, COMP = (() => {
-  const p = POSES[0]; let fx = p[3] - p[0], fz = p[5] - p[2]; const l = hypot(fx, fz); fx /= l; fz /= l;
-  const x = p[0] + fx * 9.5, z = p[2] + fz * 9.5, yaw = atan2(-fx, -fz), c = cos(yaw), s = sin(yaw), ct = cos(TILT), st = sin(TILT);
+// 廣場：所有可互動物件都環繞出生點擺放，站著不動轉一圈就看得到。around(a, d) 是從進站的方向往右轉 a（弧度）、
+// 距離出生點 d 公尺的位置，連同從出生點看過去的方向
+const P0 = POSES[0], FWD = (() => { const fx = P0[3] - P0[0], fz = P0[5] - P0[2], l = hypot(fx, fz); return [fx / l, fz / l]; })();
+const around = (a, d) => { const dx = FWD[0] * cos(a) - FWD[1] * sin(a), dz = FWD[1] * cos(a) + FWD[0] * sin(a); return [P0[0] + dx * d, P0[2] + dz * d, dx, dz]; };
+// 物件的順序（潛水日誌、點選、開過的記號都用這個順序）：兩台電腦，再來五個寶箱
+const IDS = ['video', 'info', 'contact', 'plans', 'process', 'work', 'about'];
+// 佈局：往右轉的角度、距離、（寶箱）朝向的偏轉、光的等級。聯絡與方案最亮最大，一左一右夾著影片電腦；
+// 資訊電腦在右邊的坡上；其餘三個寶箱沿著左邊開闊的沙地排開。出生點的右後方是長滿海綿與海帶的斜坡，
+// 放在那裡會被擋住（試過），所以空著
+const LAY = [[0, 9.5], [1.05, 8], [0.5, 6, -0.35, 1], [-0.5, 6, 0.35, 1], [-1.2, 7.5, 0.3, 0.6], [-1.9, 7, 0.3, 0.6], [-2.6, 7, 0.3, 0.6]];
+const CSCALE = 3.2, TILT = 0.12, mkComp = (L) => {
+  const [x, z, fx, fz] = around(L[0], L[1]), yaw = atan2(-fx, -fz), c = cos(yaw), s = sin(yaw), ct = cos(TILT), st = sin(TILT);
   // 地面取主機中心與前緣兩處較高的，前緣才不會被埋住
   const y = max(Wd.gy(x, z), Wd.gy(x + s * CSCALE * 0.5, z + c * CSCALE * 0.5)) - 0.1;
   // 電腦自己的座標（單位是它的寬度）轉到世界：先後仰，再轉向
@@ -289,7 +321,18 @@ const CSCALE = 3.2, TILT = 0.12, COMP = (() => {
   const sc = at(0, SCREEN.y, SCREEN.z);
   return { x, y, z, yaw, c, s, ct, st, at, sx: sc[0], sy: sc[1], sz: sc[2], hw: SCREEN.hw * CSCALE, hh: SCREEN.hh * CSCALE,
     nx: s * ct, ny: st, nz: c * ct, ux: -s * st, uy: ct, uz: -c * st };
-})();
+};
+// 兩台電腦：影片電腦在出生點正前方，資訊電腦在它旁邊
+const COMPS = [mkComp(LAY[0]), mkComp(LAY[1])], COMP = COMPS[0];
+// FG STUDIO: 寶箱，正面朝向出生點再偏一點，看得到側面。放大 CHS 倍（定義在 shaders.js）。位置要在 Wd.gy 釋放之前算好
+const mkChest = (L) => {
+  const [x, z, dx, dz] = around(L[0], L[1]), yaw = atan2(-dx, -dz) + L[2], c = cos(yaw), s = sin(yaw);
+  // 地面取箱底四個角與中心最低的，再往下陷一點：斜坡上寧可埋進去一角，也不要懸空
+  let y = Wd.gy(x, z);
+  for (const [ex, ez] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { const lx = ex * CHEST.hw * CHS, lz = ez * CHEST.hd * CHS; y = min(y, Wd.gy(x + c * lx + s * lz, z - s * lx + c * lz)); }
+  return { x, y: y - 0.04, z, yaw, c, s, ct: 1, st: 0, g: L[3] };
+};
+const CH = LAY.slice(2).map(mkChest), NCH = CH.length;
 // 進站的視點：站在第一個視點，面向影片電腦，鯨尾石雕在它後上方
 const SPAWN = [POSES[0][0], POSES[0][1], POSES[0][2], COMP.x, COMP.y + CSCALE * 1.3, COMP.z];
 D = Wd.gy = T.smp = null; // with gy goes the generator's working memory (about 200 MB)
@@ -306,6 +349,7 @@ meshes.push(meshFluke(), meshShip().build(), meshManta().build(), meshFish().bui
   meshChunk(3).build(), meshChunk(11).build(), meshChunk(29).build(), meshChunk(5, 3).build(), meshChunk(17, 3).build(), meshChunk(41, 3).build(), meshChunk(9, 1).build(), meshCoral(0, 1).build(), meshCoral(1, 1).build(), meshChunk(5, 2, 1).build(), meshChunk(17, 2, 1).build(), meshChunk(41, 2, 1).build());
 // FG STUDIO: 新網格一律加在尾端（上面的繪製程式以數字索引存取這個陣列）。26 復古電腦
 meshes.push(meshComputer().build());
+meshes.push(meshChest().build(), meshChestLid().build()); // 27 寶箱的箱體，28 箱蓋
 let nV = 0, nI = 0;
 for (const m of meshes) { m.v0 = nV; m.i0 = nI; nV += m.nv; nI += m.ib.length; }
 const allV = new Uint8Array(nV * 16), allI = new Uint32Array(nI);
@@ -315,6 +359,16 @@ const vbTerrain = buf(new Uint8Array(T.vb), BU.VERTEX), ibTerrain = buf(T.ib, BU
 const nSolid = Wd.solids.data.length / 12;
 const solidData = new Float32Array((nSolid + 1) * 12); solidData.set(Wd.solids.data); solidData.set([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0], nSolid * 12);
 const ibSolids = buf(solidData, BU.VERTEX);
+// FG STUDIO: 從出生點看向每個可互動物件的視線上，清掉擋路的珊瑚與海綿：把它們的大小設成 0。在世界生成之後才做，
+// 不動生成器的亂數順序，世界其他地方不變。清的是一條跟物件一樣寬（多半公尺）的帶子，一直到物件後面一點
+for (const c of Wd.props) for (let k = 0; k < c.n * 12; k += 12) {
+  const x = c.data[k] - P0[0], z = c.data[k + 2] - P0[2];
+  for (let j = 0; j < IDS.length; j++) {
+    const o = j < 2 ? COMPS[j] : CH[j - 2], r = (j < 2 ? 0.56 * CSCALE : 0.62 * CHS) + 0.5, ax = o.x - P0[0], az = o.z - P0[2];
+    let t = (x * ax + z * az) / (ax * ax + az * az); t = t < 0 ? 0 : t > 1.08 ? 1.08 : t;
+    if (hypot(x - ax * t, z - az * t) < r) { c.data[k + 3] = 0; break; }
+  }
+}
 const ibChunk = Wd.chunks.map((c) => buf(c.data, BU.VERTEX)), ibProp = Wd.props.map((c) => buf(c.data, BU.VERTEX));
 const ibBig = buf(new Uint8Array(Wd.big.buf), BU.VERTEX), ibBigF = buf(new Uint8Array(Wd.bigF.buf), BU.VERTEX), ibSmall = buf(new Uint8Array(Wd.small.buf), BU.VERTEX);
 const ibFish = buf(Wd.fish, BU.VERTEX), ibManta = buf(Wd.mantas, BU.VERTEX), ibBubbles = buf(Wd.bubbles, BU.VERTEX), ibSnowB = buf(Wd.snow, BU.VERTEX);
@@ -323,22 +377,62 @@ const nFish = Wd.fish.length / 8, nManta = Wd.mantas.length / 8, nBub = Wd.bubbl
 const MANTA = meshes[12], FISH = meshes[13];
 // FG STUDIO: 復古電腦的實例（與 solid() 相同的 12 個浮點數，材質 6），加上長在它身上與旁邊的珊瑚和海綿
 // （用上游的網格 4-9）。OBJ 是繪製清單：網格編號，實例在 ibObj 裡的順序就是清單的順序
-const OBJ = [26, 7, 9, 8, 5, 9];
+const OBJ = [26, 7, 9, 8, 5, 9, 26, 7, 9, 8, 5, 9], CH0 = OBJ.length;
+for (let i = 0; i < NCH; i++) OBJ.push(27, 28);
+// 開過的物件（重新整理後仍記得）：localStorage.fgOpen 是用逗號隔開的 IDS
+const opened = new Set();
+try { for (const s of (localStorage.fgOpen || '').split(',')) if (IDS.includes(s)) opened.add(s); } catch {}
+// 寶箱：chFrac 箱蓋打開的程度（0 到 1），chLevel 光的強度（開過的變柔和）。chData 是每個寶箱的箱體與箱蓋兩筆實例；
+// fxData 先是每個寶箱的光柱，再來是光暈，最後是每個寶箱 NMOTE 個光點；chWrite(i) 把第 i 個寶箱目前的狀態寫進去
+const chFrac = new Float32Array(NCH), chLevel = new Float32Array(NCH).fill(1);
+const NMOTE = 36, chData = new Float32Array(24 * NCH), fxData = new Float32Array(NCH * (2 + NMOTE) * 8);
+for (let i = 0; i < NCH; i++) {
+  const o = CH[i], g = o.g, big = 0.5 + 0.5 * g, q = qAxis(0, 1, 0, o.yaw), hz = -CHEST.hd * CHS;
+  if (opened.has(IDS[i + 2])) { chFrac[i] = 1; chLevel[i] = 0.4; }
+  chData.set([o.x, o.y, o.z, CHS, ...q, 7, 0.61, 1, 0], i * 24);
+  chData.set([o.x + o.s * hz, o.y + (CHEST.h + CHEST.gap) * CHS, o.z + o.c * hz, CHS, ...q, 7, 0.23, 1, 0], i * 24 + 12);
+  // 光的等級 g：次一級的光柱比較矮、比較細，光暈比較小，全部比較暗
+  fxData.set([o.x, o.y + 0.3 * CHS, o.z, 15 * big, 0.3 + i, 0.34 * big, g, 1], i * 8);
+  fxData.set([o.x, o.y, o.z, 2.5 * big, 0.3 + i, 0.6 * CHS, g, 1], (NCH + i) * 8);
+  for (let j = 0; j < NMOTE; j++) fxData.set([o.x, o.y, o.z, CHS, (j * 0.618034 + 0.07 + i * 0.23) % 1, 0.07 + 0.06 * ((j * 0.37) % 1), g, 1], (2 * NCH + i * NMOTE + j) * 8);
+}
 const ibObj = (() => {
-  const q = qMul(qAxis(0, 1, 0, COMP.yaw), qAxis(1, 0, 0, -TILT)), a = [COMP.x, COMP.y, COMP.z, CSCALE, ...q, 6, 0.37, 1, 0];
-  // 位置（電腦自己的座標）、大小、繞自己轉的角度、材質（5 珊瑚、4 海綿）、種子
-  for (const g of [[-0.3, 1.05, -0.2, 0.75, 1, 5, 0.12], [0.66, -0.02, 0.15, 0.85, 2, 4, 0.31], [0.4, 0.3, -0.1, 0.4, 4, 5, 0.83], [-0.68, -0.03, 0.4, 0.6, 3, 4, 0.55], [-0.6, -0.02, -0.25, 0.7, 5, 4, 0.78]])
-    a.push(...COMP.at(g[0], g[1], g[2]), g[3], ...qMul(q, qAxis(0, 1, 0, g[4])), g[5], g[6], 1, 0);
+  const a = [];
+  COMPS.forEach((C, k) => {
+    const q = qMul(qAxis(0, 1, 0, C.yaw), qAxis(1, 0, 0, -TILT)), m = k ? -1 : 1; // 第二台的珊瑚左右對調，看起來不一樣
+    a.push(C.x, C.y, C.z, CSCALE, ...q, 6, k ? 0.71 : 0.37, 1, 0);
+    // 位置（電腦自己的座標）、大小、繞自己轉的角度、材質（5 珊瑚、4 海綿）、種子
+    for (const g of [[-0.3, 1.05, -0.2, 0.75, 1, 5, 0.12], [0.66, -0.02, 0.15, 0.85, 2, 4, 0.31], [0.4, 0.3, -0.1, 0.4, 4, 5, 0.83], [-0.68, -0.03, 0.4, 0.6, 3, 4, 0.55], [-0.6, -0.02, -0.25, 0.7, 5, 4, 0.78]])
+      a.push(...C.at(g[0] * m, g[1], g[2]), g[3], ...qMul(q, qAxis(0, 1, 0, g[4] + k)), g[5], (g[6] + k * 0.17) % 1, 1, 0);
+  });
+  for (let i = 0; i < 24 * NCH; i++) a.push(0); // 寶箱的箱體與箱蓋，由 chWrite() 填
   return buf(new Float32Array(a), BU.VERTEX);
 })();
-const GLOW = 3, scrData = new Float32Array([COMP.sx, COMP.sy, COMP.sz, GLOW, COMP.c, 0, -COMP.s, COMP.hw, COMP.ux, COMP.uy, COMP.uz, COMP.hh, 4 / 3, 0, 0, 0]);
+const ibFx = buf(fxData, BU.VERTEX);
+function chWrite(i) {
+  // 箱蓋繞著鉸鍊（它自己的 x 軸）往後掀：寶箱的朝向乘上繞 x 軸轉 -a
+  const o = CH[i], k = i * 24, a = chFrac[i] * 1.85, sx = sin(-a / 2), cx = cos(a / 2), sy = sin(o.yaw / 2), cy = cos(o.yaw / 2), lv = chLevel[i];
+  chData[k + 16] = cy * sx; chData[k + 17] = sy * cx; chData[k + 18] = -sy * sx; chData[k + 19] = cy * cx;
+  chData[k + 10] = chData[k + 22] = lv * sqrt(o.g);
+  Q.writeBuffer(ibObj, CH0 * 48 + k * 4, chData, k, 24);
+  fxData[i * 8 + 7] = fxData[(NCH + i) * 8 + 7] = lv;
+  for (let j = 0, f = (2 * NCH + i * NMOTE) * 8 + 7; j < NMOTE; j++, f += 8) fxData[f] = lv;
+  Q.writeBuffer(ibFx, 0, fxData);
+}
+for (let i = 0; i < NCH; i++) chWrite(i);
+// 螢幕的實例：每台電腦一筆。第一台取樣影片貼圖，第二台取樣一張畫好的畫面（interact.js）
+const GLOW = 3, scrData = new Float32Array(32);
+COMPS.forEach((C, k) => scrData.set([C.sx, C.sy, C.sz, GLOW, C.c, 0, -C.s, C.hw, C.ux, C.uy, C.uz, C.hh, 4 / 3, 0, 0, 0], k * 16));
 const ibScr = buf(scrData, BU.VERTEX);
 // 影片貼圖：隱藏的 <video> 每出一格新畫面就複製進來（interact.js 設定來源）。先放一張 1x1 的，等影片載入再換成影片的大小
 const VTU = TU.TEXTURE_BINDING | TU.COPY_DST | TU.RENDER_ATTACHMENT;
 let tVid = tex(1, 1, 'rgba8unorm', VTU), bgVid = blitBG(tVid.createView()), vidNew = false, scrDirty = false;
+// 資訊電腦螢幕遠看的畫面：一張畫好的 4:3 圖（interact.js 畫好後複製進來）
+const tInfo = tex(512, 384, 'rgba8unorm', VTU), bgInfo = blitBG(tInfo.createView());
 const vidSrc = { source: null }, vidDst = { texture: tVid }, vidSize = [1, 1];
 // front: 正面模式（鏡頭停在電腦正前方，由 HTML 播放器接手）。frame() 與輸入都要看它
-let front = false, hot = -1, ptX = 0, ptY = 0;
+// win: 內容視窗開著（寶箱的內容）。與正面模式一樣放開游標、不開選單
+let front = false, win = false, hot = -1, ptX = 0, ptY = 0;
 Q.writeTexture({ texture: tVol }, Wd.volD, { bytesPerRow: NX, rowsPerImage: NY / 2 }, [NX / 2, NY / 2, NZ / 2]);
 Q.writeTexture({ texture: tMap }, Wd.gm, { bytesPerRow: 2048 }, [512, 512]);
 
@@ -520,7 +614,7 @@ function render() {
   }
   r.setPipeline(pManta); r.setVertexBuffer(1, ibManta); r.drawIndexed(MANTA.ib.length, nManta, MANTA.i0, MANTA.v0, 0);
   r.setPipeline(pFish); r.setVertexBuffer(1, ibFish); r.drawIndexed(FISH.ib.length, nFish, FISH.i0, FISH.v0, 0);
-  r.setPipeline(pScreen); r.setBindGroup(1, bgVid); r.setVertexBuffer(0, ibScr); r.draw(4, 1); // FG STUDIO: 電腦螢幕
+  r.setPipeline(pScreen); r.setBindGroup(1, bgVid); r.setVertexBuffer(0, ibScr); r.draw(4, 1); r.setBindGroup(1, bgInfo); r.draw(4, 1, 0, 1); // FG STUDIO: 兩台電腦的螢幕
   // kelp and plants: 9-row blades up close, 5 rows mid-range, a decimated set far away
   r.setPipeline(pLeaf); r.setVertexBuffer(0, ibBig); drawCells(r, Wd.big.start, Wd.big.lo, Wd.big.hi, 5, false, 18, 0, 24);
   r.setPipeline(pLeaf5); drawCells(r, Wd.big.start, Wd.big.lo, Wd.big.hi, 5, false, 10, 24, 58);
@@ -530,7 +624,8 @@ function render() {
   r.setPipeline(pBack); r.draw(4);
   r.setPipeline(pBub); r.setVertexBuffer(0, ibBubbles); r.draw(4, nBub);
   r.setPipeline(pGl); r.setVertexBuffer(0, ibGl); r.draw(4, nGl);
-  r.setPipeline(pScreenGlow); r.setVertexBuffer(0, ibScr); r.draw(4, 1); // FG STUDIO: 螢幕的光暈
+  r.setPipeline(pScreenGlow); r.setVertexBuffer(0, ibScr); r.draw(4, 2); // FG STUDIO: 螢幕的光暈
+  r.setPipeline(pBeam); r.setVertexBuffer(0, ibFx); r.draw(4, NCH, 0, 0); r.setPipeline(pHalo); r.draw(4, NCH, 0, NCH); r.setPipeline(pMote); r.draw(4, NCH * NMOTE, 0, 2 * NCH); // FG STUDIO: 寶箱的光柱、光暈、光點
   r.setPipeline(pSnow); r.setVertexBuffer(0, ibSnowB); r.draw(4, nSnow);
   r.end();
   // light shafts
@@ -645,14 +740,15 @@ const key = (e, v) => {
 };
 // behind the menu only the stats and mute keys work
 addEventListener('keydown', (e) => {
-  if (front) { if (e.code === 'Escape') exitFront(); return; } // FG STUDIO: 正面模式只認 Esc，其餘留給播放器
+  if (front) { frontKey(e); return; } // FG STUDIO: 正面模式只認 Esc（資訊電腦多了左右鍵），其餘留給播放器
+  if (win) { winKey(e); return; } // FG STUDIO: 內容視窗開著時只認 Esc 與 Tab
   if (menu && e.code !== 'KeyH' && e.code !== 'KeyM') return; sound(); key(e, 1);
 });
 addEventListener('keyup', (e) => key(e, 0));
 const release = () => { kf = kb = kl = kr = ku = kd = ks = 0; tId = -1; tN = 0; };
 const capture = () => { sound(); const p = canvas.requestPointerLock({ unadjustedMovement: true }); if (p && p.catch) p.catch(() => canvas.requestPointerLock()).catch(() => 0); };
 // FG STUDIO: 點到可互動物件就開啟它；正面模式下點螢幕外離開；其餘照上游鎖定游標
-canvas.addEventListener('click', () => { if (menu) return; if (front) exitFront(); else if (hot >= 0) activate(hot); else capture(); });
+canvas.addEventListener('click', () => { if (menu || win) return; if (front) exitFront(); else if (hot >= 0) activate(hot); else capture(); });
 addEventListener('mousemove', (e) => { ptX = e.clientX; ptY = e.clientY; });
 addEventListener('mousemove', (e) => { if (document.pointerLockElement === canvas) { mdx += e.movementX; mdy += e.movementY; } });
 addEventListener('blur', release);
@@ -677,20 +773,20 @@ let menu = true;
 const bDive = $('d');
 const ui = (m) => {
   if (dead) return;
-  menu = m; body.className = m ? 'm' : (document.pointerLockElement ? 'g p' : 'g') + (front ? ' f' : '') + (hot >= 0 ? ' h' : '');
+  menu = m; body.className = m ? 'm' : (document.pointerLockElement ? 'g p' : 'g') + (front ? ' f' : '') + (win ? ' w' : '') + (hot >= 0 ? ' h' : '');
   // focus the dive button so Enter works (delayed: it can't take focus while still hidden)
   if (m) { release(); setTimeout(() => menu && bDive.focus(), 100); } else document.activeElement.blur();
 };
-const go = () => {
-  sound(); ui(false); bDive.textContent = 'Resume';
+const go = (e) => {
+  sound(); ui(false); bDive.className = 'r'; hint();
   // phones: go fullscreen and ask for landscape; where that is refused the CSS rotation still applies
   if (mob) document.documentElement.requestFullscreen?.()?.then(() => screen.orientation.lock('landscape')).catch(() => 0);
-  if (!mob) capture();
+  if (!mob && e) capture(); // 從潛水日誌進來的（沒有 e）不鎖游標
 };
 bDive.onclick = go; $('o').onclick = () => ui(true);
 // detail buttons: the current level is lit, the others reload the page with theirs
 $('q').querySelectorAll('button').forEach((b, i) => { if (i === 2 - LV) b.className = 'on'; else b.onclick = () => { keep('abyssal', 2 - i); location.reload(); }; });
-document.addEventListener('pointerlockchange', () => ui(!front && !document.pointerLockElement)); // 正面模式自己放開游標，不開選單
+document.addEventListener('pointerlockchange', () => ui(!front && !win && !document.pointerLockElement)); // 正面模式與內容視窗自己放開游標，不開選單
 
 // draw the first frame and wait for the GPU to finish it (pipelines get compiled on first use) before the reveal
 lookAt(...SPAWN);
