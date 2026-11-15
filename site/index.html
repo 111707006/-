@@ -139,9 +139,6 @@ body:not([data-stop="0"]) .rail .tip { opacity: 0; }
 #lightbox video { max-width: 100%; max-height: 82vh; background: #000; box-shadow: 0 0 120px rgba(160,200,255,.18); }
 #lightbox .x { position: absolute; top: 22px; right: 26px; background: none; border: 0; font-size: 30px; cursor: pointer; }
 /* 名片 */
-.panel .links { display: flex; flex-wrap: wrap; gap: 6px 20px; margin-top: 18px; font-size: 12px; letter-spacing: .22em; max-width: none; }
-.panel .links a { color: var(--ink); text-decoration: none; padding: 4px 0; border-bottom: 1px solid var(--line); }
-.panel .links a:hover { border-bottom-color: var(--warm); }
 #card { position: fixed; z-index: 20; inset: 0; background: rgba(3,4,7,.97); display: grid; place-items: center; padding: 64px 20px 28px; overflow-y: auto; }
 #card .x { position: absolute; top: 22px; right: 26px; background: none; border: 0; font-size: 30px; cursor: pointer; }
 .cardbox { width: min(560px, 100%); }
@@ -171,7 +168,6 @@ body.ready #load, body.nogpu #load { opacity: 0; visibility: hidden; }
   .rail { top: 42%; gap: 8px; }
   .rail .dot { height: 26px; }
   .panel p { font-size: 14.5px; }
-  body:not(.nogpu) .panel .no.dup { display: none; } /* 聯絡那一站內容多，站名會疊到櫃檯上的大字；場景裡已經有 CUSTOMER SERVICE */
   .menu { gap: 6px; } .menu button { padding: 10px 10px; font-size: 13px; }
   .panel:has(.menu:not([hidden])) p { display: none; } /* 選單打開時收起說明，免得整段疊到影片牆上 */
 }
@@ -253,12 +249,11 @@ body.ready #load, body.nogpu #load { opacity: 0; visibility: hidden; }
 </section>
 
 <section class="panel">
-  <div class="no dup">04 — CONTACT</div>
+  <div class="no">04 — CONTACT</div>
   <h2 class="dup">CUSTOMER SERVICE</h2>
   <p data-en="Tell us what you want to get across: your brand, the audience you want to reach, and what you want the video to achieve.">聊聊你想說清楚的事：你的品牌、想觸及的受眾，以及希望影像達成的目標。</p>
   <p class="trust" data-en="Formal contract · Optional NDA · You decide whether the work goes public">正式合約 · NDA 可選 · 作品是否公開由你決定</p>
   <div class="acts"><a class="btn solid" id="talk" href="mailto:forgod20232023@gmail.com?subject=FG%20STUDIO%20Project%20Inquiry" data-en="Start a Conversation">開始洽談</a><button class="btn" id="cardBtn" data-en="Business Card">名片</button></div>
-  <p class="links"><a href="mailto:forgod20232023@gmail.com">EMAIL</a><a href="tel:+886938515118" data-en="PHONE">電話</a><a href="https://line.me/ti/p/~messi920927" target="_blank" rel="noopener">LINE</a><a href="https://www.instagram.com/for_g_studio/" target="_blank" rel="noopener">INSTAGRAM</a></p>
   <p class="foot">© 2026 FG STUDIO · FOR GOD</p>
 </section>
 
