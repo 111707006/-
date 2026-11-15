@@ -245,10 +245,16 @@ const NOTE = { // 靜態版本的提示：一般（不支援）、跑太慢、�
   'too slow': ['此裝置跑 3D 場景太吃力，顯示靜態版本', 'The 3D scene is too heavy for this device. Showing the static version.'],
   'device lost': ['顯示裝置中斷，顯示靜態版本（重新整理可再試一次）', 'Graphics device lost. Showing the static version (reload to try again).'],
 };
+const EN_TITLE = "FG STUDIO | GVS Brand Video Production & Long-Term Short-Form Video", EN_DESC = "GVS (Global Video Service) by FG STUDIO: long-term video production for brands, companies and schools. Brand introductions, product explainers, support & FAQ, training, campus policy & events, social content. From NT$2,000 per video; VIP covers 15 videos a month.";
+const metaEl = (sel) => document.querySelector(sel);
+const META = [[document, 'title', document.title, EN_TITLE], ...['meta[name=description]', 'meta[property="og:description"]', 'meta[name="twitter:description"]'].map((s) => [metaEl(s), 'content', metaEl(s)?.content, EN_DESC]),
+  ...['meta[property="og:title"]', 'meta[name="twitter:title"]'].map((s) => [metaEl(s), 'content', metaEl(s)?.content, EN_TITLE])];
 const titleCase = (t) => t.toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase()).replace('Faq', 'FAQ');
 function setLang(l) {
   lang = l === 'en' ? 'en' : 'zh'; const en = lang === 'en';
   document.documentElement.lang = en ? 'en' : 'zh-Hant';
+  META.forEach(([el, attr, zh, e2]) => { if (el) el[attr] = en ? e2 : zh; }); // 標題與摘要跟著語言換（搜尋引擎與分享預覽用）
+  if (qs.get('lang')) document.querySelector('link[rel=canonical]')?.setAttribute('href', location.origin + location.pathname + (en ? '?lang=en' : ''));
   i18n.forEach((x) => { x.el.innerHTML = en ? x.en : x.zh; });
   i18nLabel.forEach((x) => x.el.setAttribute('aria-label', en ? x.en : x.zh));
   SCN.forEach(([, zh, e2], k) => {
