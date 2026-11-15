@@ -47,13 +47,13 @@ for (let k = 0; k < 6; k++) {
 
 // ---------- 線光源 [ax,ay,az,強度, bx,by,bz,光暈（負值=冷色）] ----------
 const lines = [];
-for (const z of [7, 11, 15, 19, 23, 27, 31]) { const hl = 2.0 + 0.21 * z; lines.push([-hl, 0.03, z, 0.7, hl, 0.03, z, 0.28]); }
-lines.push([-4.5, 0.06, 3.06, 2.2, 4.5, 0.06, 3.06, 0.9]);             // 櫃檯底
+for (const z of [7, 11, 15, 19, 23, 27]) { const hl = 2.0 + 0.21 * z; lines.push([-hl, 0.03, z, 0.7, hl, 0.03, z, 0.28]); }
+lines.push([-4.5, 0.06, 3.06, 1.6, 4.5, 0.06, 3.06, 0.6]);             // 櫃檯底
 lines.push([-8.55, 0.08, 12.5, 0.9, -8.55, 0.08, 19.5, 0.35], [8.55, 0.08, 12.5, 0.9, 8.55, 0.08, 19.5, 0.35]); // 長凳底
-for (const z of [-2.6, -6.5, -10.4]) lines.push([-5.2, 4.96, z, 1.2, 5.2, 4.96, z, 0.6]); // 大廳天花
-lines.push([-5.3, 0.05, -9.25, 1.1, 5.3, 0.05, -9.25, 0.3]);            // 長桌底
+for (const z of [-2.6, -6.5, -10.4]) lines.push([-5.2, 4.96, z, 2.6, 5.2, 4.96, z, 0.6]); // 大廳天花
+lines.push([-5.3, 0.05, -9.25, 1.5, 5.3, 0.05, -9.25, 0.3]);            // 長桌底
 // 「BEYOND THE FRAME」：大廳入口的冷色光框，鏡頭會穿過它
-{ const z = 0.45, w = 7.0, y0 = 0.04, y1 = 5.22, I = 0.5, H = -1.0;
+{ const z = 0.45, w = 7.0, y0 = 0.04, y1 = 5.22, I = 0.5, H = -0.4;
   lines.push([-w, y0, z, I, w, y0, z, H], [-w, y1, z, I, w, y1, z, H], [-w, y0, z, I, -w, y1, z, H], [w, y0, z, I, w, y1, z, H]); }
 
 // ---------- 鏡頭路徑 ----------
@@ -183,10 +183,16 @@ async function start() {
   const smp = device.createSampler({ magFilter: 'linear', minFilter: 'linear' });
   const bind = device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: ubuf } }, { binding: 1, resource: tex.createView() }, { binding: 2, resource: smp }] });
 
+  // 畫質分兩級：高＝地面做完整的一次反射；低＝反射只看大件、不算逐燈光照，解析度上限也低一點
+  // 手機一開始就用低畫質；其他裝置先用高畫質，跑不動再自動換成低畫質（不會自己換回去）。?q=high／low 可以固定
+  const fixedQ = qs.has('q');
+  const mobile = navigator.userAgentData?.mobile ?? /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  let hq = fixedQ ? qs.get('q') !== 'low' : !mobile, slowHi = 0;
+  const setQ = () => { window.__q = document.body.dataset.q = hq ? 'high' : 'low'; }; setQ();
   // 依幀時間調整解析度
-  // 解析度倍率：最高 1.5（一倍螢幕上等於超取樣，當成抗鋸齒），太慢就往下降
-  const SS = 1.5, MIN = 0.45;
-  let scale = qs.has('scale') ? +qs.get('scale') : Math.min(devicePixelRatio, SS), acc = 0, frames = 0, best = 1e9, cool = 0, coolN = 20, slowN = 0, dead = false;
+  // 解析度倍率：高畫質最高 1.5（一倍螢幕上等於超取樣，當成抗鋸齒），低畫質 1.25；太慢就往下降
+  const MIN = 0.45, cap = () => (hq ? 1.5 : 1.25);
+  let scale = qs.has('scale') ? +qs.get('scale') : Math.min(devicePixelRatio, cap()), acc = 0, frames = 0, best = 1e9, cool = 0, coolN = 20, slowN = 0, dead = false;
   const fixedScale = qs.has('scale');
   let W = 0, H = 0;
   function resize() {
@@ -233,7 +239,7 @@ async function start() {
     const up = [r[1] * f[2] - r[2] * f[1], r[2] * f[0] - r[0] * f[2], r[0] * f[1] - r[1] * f[0]];
 
     data.set([p[0], p[1], p[2], time, f[0], f[1], f[2], tanH, r[0], r[1], r[2], aspect, up[0], up[1], up[2], warmOn,
-      canvas.width, canvas.height, boxes.length, lines.length, T, AT.split / AT.h, AT.right / AT.h, 0, nOuter, glassOn, 0, 0]);
+      canvas.width, canvas.height, boxes.length, lines.length, T, AT.split / AT.h, AT.right / AT.h, 0, nOuter, glassOn, hq ? 1 : 0, 0]);
     device.queue.writeBuffer(ubuf, 0, data);
     drawAtlas();
     if (atlasDirty && !qs.has('noatlas')) { device.queue.copyExternalImageToTexture({ source: atlas }, { texture: tex }, [AT.w, AT.h]); atlasDirty = false; }
@@ -275,8 +281,12 @@ async function start() {
         // best：看過最短的每格時間，約等於螢幕的更新間隔。掉到 45 幀以下就降；貼著更新間隔跑就試著升，
         // 升了又掉回來的話，下次等久一點再試
         best = Math.min(best, ms); if (cool > 0) cool--;
-        if (ms > Math.max(Math.min(best, 16.7) * 1.3, 20) && scale > MIN) { scale = Math.max(MIN, scale * 0.85); cool = coolN; coolN = Math.min(coolN * 2, 320); resize(); }
-        else if (ms < best * 1.12 && cool === 0 && scale < SS) { scale = Math.min(SS, scale * 1.1); resize(); }
+        const slow = ms > Math.max(Math.min(best, 16.7) * 1.3, 20);
+        slowHi = slow && hq ? slowHi + 1 : 0;
+        // 高畫質已經降到一倍以下還是慢，或連兩次不到 30 幀：換成低畫質，解析度留著
+        if (slow && hq && !fixedQ && (scale <= 1.0 || (ms > 33 && slowHi >= 2))) { hq = false; setQ(); cool = 4; }
+        else if (slow && scale > MIN) { scale = Math.max(MIN, scale * 0.85); cool = coolN; coolN = Math.min(coolN * 2, 320); resize(); }
+        else if (ms < best * 1.12 && cool === 0 && scale < cap()) { scale = Math.min(cap(), scale * 1.1); resize(); }
         // 降到最低解析度還是不到 20 幀，連續三次就換成靜態版本
         if (scale <= MIN && ms > 50) { if (++slowN >= 3) { dead = true; fallback('too slow'); } } else slowN = 0;
       }

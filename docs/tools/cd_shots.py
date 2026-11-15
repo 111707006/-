@@ -11,7 +11,7 @@ def one(tag):
     if phone: call('Emulation.setDeviceMetricsOverride', width=390, height=844, deviceScaleFactor=2, mobile=True)
     else: call('Emulation.setDeviceMetricsOverride', width=1280, height=720, deviceScaleFactor=1, mobile=False)
     call('Page.navigate', url='about:blank'); time.sleep(0.3)
-    call('Page.navigate', url=url + '?t=%s&time=12' % t)
+    call('Page.navigate', url=url + ('&' if '?' in url else '?') + 't=%s&time=12' % t)
     st = None
     for _ in range(120):
         st = ev("window.__ready ? 'ready' : document.body && document.body.classList.contains('nogpu') ? 'nogpu' : ''")
