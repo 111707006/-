@@ -97,10 +97,10 @@ const AT = { w: 1024, h: 1136, split: 540, right: 560 };
 const atlas = document.createElement('canvas'); atlas.width = AT.w; atlas.height = AT.h;
 const actx = atlas.getContext('2d');
 // 左牆六格＝六種影片需求，一格一支我們為客戶製作的作品（對應依檔名推測，待負責人確認）。只標需求，不標客戶。
-// 名稱一律帶「需求」，免得被讀成 FG STUDIO 自己的網站選單（品牌介紹、產品說明…）
+// 「需求」寫在牆上的大標題與站名，格子只寫名稱；每格左上角標「客戶作品」，免得被讀成 FG STUDIO 自己的網站選單
 const SCN = [
-  ['sleepygulls-brand-film', '品牌形象需求', 'BRAND IMAGE'], ['ys-01-new-device', '產品說明需求', 'PRODUCT EXPLAINERS'], ['sg-04-mattress-sagging', '客戶服務需求', 'CUSTOMER SUPPORT'],
-  ['ueis-milk-protein-lab', '教育訓練需求', 'TRAINING'], ['ueis-thanksgiving-trailer-2026', '校園活動需求', 'CAMPUS EVENTS'], ['sg-02-fabric-pattern', '社群短影音需求', 'SHORT-FORM SOCIAL'],
+  ['sleepygulls-brand-film', '品牌介紹', 'BRAND INTRODUCTION'], ['ys-01-new-device', '產品說明', 'PRODUCT EXPLAINER'], ['sg-04-mattress-sagging', '客服與常見問題', 'SUPPORT & FAQ'],
+  ['ueis-milk-protein-lab', '教育訓練', 'TRAINING'], ['ueis-thanksgiving-trailer-2026', '校園政策與活動', 'CAMPUS POLICY & EVENTS'], ['sg-02-fabric-pattern', '社群短影音', 'SHORT-FORM SOCIAL'],
 ];
 const WALL = SCN.map((s) => s[0]);
 const slots = WALL.map((id, k) => ({ id, x: (k % 3) * (AT.w / 3), y: Math.floor(k / 3) * (AT.split / 2), w: AT.w / 3, h: AT.split / 2 }));
