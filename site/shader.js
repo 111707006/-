@@ -1,5 +1,7 @@
 // FG STUDIO — The Creative District
-// 全螢幕光線追蹤著色器（WGSL）。場景完全由程式生成：方塊清單與線光源由 main.js 傳入。
+// 著色器（WGSL）。場景完全由程式生成：方塊清單與線光源由 main.js 傳入。
+// 方塊與地面是三角形繪製（4 倍抗鋸齒）；材質、燈光、光暈逐像素計算；
+// 椅子保留距離場，只在椅子那一排的外框範圍裡步進；地面倒影是把場景上下顛倒再畫一次。
 export const MAX_BOXES = 112;
 export const MAX_LINES = 24;
 
@@ -14,12 +16,17 @@ struct U {
   res: vec4f,      // w, h, nBoxes, nLines
   fx: vec4f,       // x = focus stop (0..4), y = atlas split v, z = atlas right v0, w = unused
   ex: vec4f,       // x = 前段（大件）方塊數, y = 玻璃量體亮度 0..1, z = 畫質（1 高、0 低）
+  misc: vec4f,     // x = 1 表示正在畫地面倒影（場景上下顛倒）
   boxes: array<Box, ${MAX_BOXES}>,
   lines: array<Line, ${MAX_LINES}>,
 }
 @group(0) @binding(0) var<uniform> u: U;
 @group(0) @binding(1) var tex: texture_2d<f32>;
 @group(0) @binding(2) var smp: sampler;
+@group(0) @binding(3) var refl: texture_2d<f32>; // 地面倒影（畫倒影那一次綁的是空白材質）
+
+const NEAR = 0.05;
+const FAR = 2000.0;
 
 const GMIN = vec3f(-7.0, 5.2, -12.0);
 const GMAX = vec3f(7.0, 12.6, 0.0);
@@ -68,45 +75,23 @@ fn slab(ro: vec3f, inv: vec3f, a: vec3f, b: vec3f) -> vec2f { // 回傳 (進入,
   return vec2f(max(max(tmn.x, tmn.y), tmn.z), min(min(tmx.x, tmx.y), tmx.z));
 }
 
-// lite：只測大件，不測作業中心的小件與椅子（低畫質的地面反射用）
-fn trace(ro: vec3f, rd: vec3f, lite: bool) -> Hit {
-  var h: Hit; h.t = 1e9; h.mat = -1.0; h.par = 0.0; h.id = 0.0; h.n = vec3f(0, 1, 0);
-  if (rd.y < -1e-4) { let t = -ro.y / rd.y; if (t > 0.0) { h.t = t; h.mat = 9.0; } }
-  let inv = 1.0 / rd;
-  // 前段是大件（牆、玻璃、櫃檯…）；後段是作業中心的小件，視線沒穿過那一區就整段跳過
-  var n = i32(u.ex.x);
-  if (!lite) {
-    let op = slab(ro, inv, OP0, OP1);
-    if (op.x < op.y && op.y > 0.0) { n = i32(u.res.z); }
+// 椅子：沿視線在椅子那一排的範圍內步進。回傳打到的距離，沒打到是 -1
+fn marchChairs(ro: vec3f, rd: vec3f) -> f32 {
+  let ch = slab(ro, 1.0 / rd, CH0, CH1);
+  let c0 = max(ch.x, 0.002);
+  if (c0 >= ch.y) { return -1.0; }
+  var t = c0;
+  for (var i = 0; i < 56; i++) {
+    let d = chairs(ro + rd * t);
+    if (d < 0.0015) { return t; }
+    t += d;
+    if (t > ch.y) { break; }
   }
-  for (var i = 0; i < n; i++) {
-    let b = u.boxes[i];
-    let t0 = (b.a.xyz - ro) * inv; let t1 = (b.b.xyz - ro) * inv;
-    let tmin = min(t0, t1); let tmax = max(t0, t1);
-    let tn = max(max(tmin.x, tmin.y), tmin.z); let tf = min(min(tmax.x, tmax.y), tmax.z);
-    if (tn < tf && tn > 0.002 && tn < h.t) {
-      h.t = tn; h.mat = b.a.w; h.par = b.b.w; h.id = f32(i);
-      h.n = -sign(rd) * step(vec3f(tn), tmin);
-    }
-  }
-  if (lite) { return h; }
-  let ch = slab(ro, inv, CH0, CH1);
-  let c0 = max(ch.x, 0.002); let c1 = min(ch.y, h.t);
-  if (c0 < c1) {
-    var t = c0;
-    for (var i = 0; i < 56; i++) {
-      let d = chairs(ro + rd * t);
-      if (d < 0.0015) {
-        let q = ro + rd * t; let e = vec2f(0.002, 0.0);
-        h.t = t; h.mat = 11.0; h.par = 0.0;
-        h.n = normalize(vec3f(chairs(q + e.xyy) - chairs(q - e.xyy), chairs(q + e.yxy) - chairs(q - e.yxy), chairs(q + e.yyx) - chairs(q - e.yyx)));
-        break;
-      }
-      t += d;
-      if (t > c1) { break; }
-    }
-  }
-  return h;
+  return -1.0;
+}
+fn chairN(q: vec3f) -> vec3f {
+  let e = vec2f(0.002, 0.0);
+  return normalize(vec3f(chairs(q + e.xyy) - chairs(q - e.xyy), chairs(q + e.yxy) - chairs(q - e.yxy), chairs(q + e.yyx) - chairs(q - e.yyx)));
 }
 
 fn sky(rd: vec3f) -> vec3f {
@@ -364,68 +349,114 @@ fn halo(ro: vec3f, rd: vec3f, tmax: f32, a: vec3f, b: vec3f) -> f32 {
   return core * 1.9 + 0.0011 / (d * d + 0.0045) * min(1.0, 20.0 / (tr + 1.0));
 }
 
-@vertex fn vs(@builtin(vertex_index) i: u32) -> @builtin(position) vec4f {
-  return vec4f(f32((i << 1u) & 2u) * 2.0 - 1.0, f32(i & 2u) * 2.0 - 1.0, 0.0, 1.0);
-}
-
-@fragment fn fs(@builtin(position) fc: vec4f) -> @location(0) vec4f {
-  let ndc = vec2f(fc.x / u.res.x * 2.0 - 1.0, 1.0 - fc.y / u.res.y * 2.0);
-  let ro = u.camPos.xyz;
-  var rd = normalize(u.camF.xyz + u.camR.xyz * (ndc.x * u.camF.w * u.camR.w) + u.camU.xyz * (ndc.y * u.camF.w));
-  rd += vec3f(1e-5, 1e-5, 1e-5) * step(abs(rd), vec3f(1e-5));
-  let on = u.camU.w; let t = u.camPos.w;
-
-  let lq = u.ex.z < 0.5;
-  let h = trace(ro, rd, false);
-  var col = vec3f(0.0);
-  if (h.mat < 0.0) { col = sky(rd); }
-  else {
-    let p = ro + rd * h.t;
-    if (h.mat > 8.5 && h.mat < 9.5) {
-      let g = ground(p, rd, h.t);
-      col = g.rgb;
-      // 拋光地面：一次反射
-      let w = noise(p.xz * 3.0) - 0.5; let w2 = noise(p.zx * 3.0 + 7.0) - 0.5;
-      let nn = normalize(vec3f(w * 0.006, 1.0, w2 * 0.006));
-      let rr = reflect(rd, nn);
-      let h2 = trace(p + vec3f(0, 0.004, 0), rr, lq);
-      var rc = vec3f(0.0);
-      if (h2.mat < 0.0) { rc = sky(rr) * 0.6; }
-      else if (h2.mat > 8.5 && h2.mat < 9.5) { rc = vec3f(0.0); }
-      else { rc = shade(p + rr * h2.t, h2, rr, lq); }
-      let fres = 0.05 + 0.95 * pow(1.0 - max(-rd.y, 0.0), 4.0);
-      col += rc * g.a * (0.11 + 0.62 * fres) * exp(-h2.t * 0.012);
-    } else {
-      col = shade(p, h, rd, false);
-    }
-    // 薄霧
-    let fog = 1.0 - exp(-h.t * 0.0025);
-    col = mix(col, vec3f(0.008, 0.014, 0.034), fog);
-  }
-
+// 霧、光暈、色調映射、暗角、顆粒：每個像素最後都過這一段。tt 是到表面的距離（天空給很大的值）
+fn finish(cin: vec3f, tt: f32, rd: vec3f, fc: vec4f, fogOn: bool) -> vec4f {
+  let ro = u.camPos.xyz; let on = u.camU.w; let t = u.camPos.w;
+  var col = cin;
+  if (fogOn) { col = mix(col, vec3f(0.008, 0.014, 0.034), 1.0 - exp(-tt * 0.0025)); } // 薄霧
   // 光暈：線光源
   let nl = i32(u.res.w);
   for (var i = 0; i < nl; i++) {
     let L = u.lines[i];
     var lc = WARM; if (L.b.w < 0.0) { lc = vec3f(0.78, 0.85, 0.96); }
-    col += lc * halo(ro, rd, h.t, L.a.xyz, L.b.xyz) * abs(L.b.w) * on * pulse(f32(i));
+    col += lc * halo(ro, rd, tt, L.a.xyz, L.b.xyz) * abs(L.b.w) * on * pulse(f32(i));
   }
   // 光暈：玻璃量體周圍的霧光
   {
     let c = (GMIN + GMAX) * 0.5; let tc = max(dot(c - ro, rd), 0.0);
-    let q = ro + rd * min(tc, h.t);
+    let q = ro + rd * min(tc, tt);
     let d = max(abs(q - c) - (GMAX - GMIN) * 0.5, vec3f(0.0));
     col += COOL * u.ex.y * 0.032 * exp(-length(d) * 0.55) * (0.9 + 0.1 * sin(t * 0.7));
   }
-
   // 色調映射、暗角、顆粒
   col = max(col * 1.25 - vec3f(0.0012), vec3f(0.0));
   col = (col * (2.51 * col + 0.03)) / (col * (2.43 * col + 0.59) + 0.14);
   col = pow(clamp(col, vec3f(0.0), vec3f(1.0)), vec3f(1.0 / 2.2));
   col = mix(col, col * col * (3.0 - 2.0 * col), 0.38); // 對比：暗部更黑、亮線更亮
+  let ndc = vec2f(fc.x / u.res.x * 2.0 - 1.0, 1.0 - fc.y / u.res.y * 2.0);
   let vg = ndc * vec2f(0.55, 0.62);
   col *= 1.0 - 0.38 * dot(vg, vg);
-  col += (hash1(fc.xy + fract(t) * 97.0) - 0.5) * (0.008 + 0.02 * max(col.r, max(col.g, col.b)));
+  col += (hash1(floor(fc.xy) + fract(t) * 97.0) - 0.5) * (0.008 + 0.02 * max(col.r, max(col.g, col.b)));
   return vec4f(col, 1.0);
+}
+
+fn viewRay(fc: vec4f) -> vec3f {
+  let ndc = vec2f(fc.x / u.res.x * 2.0 - 1.0, 1.0 - fc.y / u.res.y * 2.0);
+  var rd = normalize(u.camF.xyz + u.camR.xyz * (ndc.x * u.camF.w * u.camR.w) + u.camU.xyz * (ndc.y * u.camF.w));
+  rd += vec3f(1e-5, 1e-5, 1e-5) * step(abs(rd), vec3f(1e-5));
+  return rd;
+}
+
+struct VO {
+  @invariant @builtin(position) pos: vec4f,
+  @location(0) wp: vec3f,                       // 真實的世界座標（畫倒影時也是沒顛倒的）
+  @location(1) @interpolate(flat) n: vec3f,
+  @location(2) @interpolate(flat) m: vec3f,     // 材質、par、方塊編號
+}
+@vertex fn vsBox(@location(0) pos: vec3f, @location(1) n: vec3f, @location(2) m: vec3f) -> VO {
+  var o: VO; o.wp = pos; o.n = n; o.m = m;
+  var pv = pos; if (u.misc.x > 0.5) { pv.y = -pv.y; } // 倒影：鏡頭看到的是上下顛倒的場景
+  let d = pv - u.camPos.xyz; let z = dot(d, u.camF.xyz);
+  o.pos = vec4f(dot(d, u.camR.xyz) / (u.camF.w * u.camR.w), dot(d, u.camU.xyz) / u.camF.w, (z - NEAR) * FAR / (FAR - NEAR), z);
+  return o;
+}
+@vertex fn vsSky(@builtin(vertex_index) i: u32) -> @builtin(position) vec4f {
+  return vec4f(f32((i << 1u) & 2u) * 2.0 - 1.0, f32(i & 2u) * 2.0 - 1.0, 1.0, 1.0);
+}
+
+@fragment fn fsPre() -> @location(0) vec4f { return vec4f(0.0); } // 只寫深度的那一次
+
+@fragment fn fsBox(in: VO) -> @location(0) vec4f {
+  let ro = u.camPos.xyz; let p = in.wp; let mir = u.misc.x > 0.5;
+  var pv = p; if (mir) { pv.y = -pv.y; }
+  let dv = pv - ro; let tt = length(dv);
+  var rd = dv / tt;
+  if (mir) { rd.y = -rd.y; } // 經地面反射之後，實際打到 p 的方向
+  rd += vec3f(1e-5, 1e-5, 1e-5) * step(abs(rd), vec3f(1e-5));
+  var h: Hit; h.t = tt; h.n = in.n; h.mat = in.m.x; h.par = in.m.y; h.id = in.m.z;
+  if (mir) {
+    // 倒影：低畫質不算逐燈光照。t2 是從地面反射點到這個表面的距離，用來讓遠處的倒影淡一點
+    let c = shade(p, h, rd, u.ex.z < 0.5);
+    let t2 = tt * p.y / (ro.y + p.y);
+    return vec4f(c * exp(-t2 * 0.012), 1.0);
+  }
+  var col = vec3f(0.0);
+  if (h.mat > 8.5 && h.mat < 9.5) {
+    let g = ground(p, rd, tt);
+    col = g.rgb;
+    // 拋光地面：取倒影那一張圖，順著地面的細微起伏偏一點
+    let w = noise(p.xz * 3.0) - 0.5; let w2 = noise(p.zx * 3.0 + 7.0) - 0.5;
+    let uv = in.pos.xy / u.res.xy + vec2f(w, w2) * 0.0014;
+    let rc = textureSampleLevel(refl, smp, uv, 0.0).rgb;
+    let fres = 0.05 + 0.95 * pow(1.0 - max(-rd.y, 0.0), 4.0);
+    col += rc * g.a * (0.11 + 0.62 * fres);
+  } else {
+    col = shade(p, h, rd, false);
+  }
+  return finish(col, tt, rd, in.pos, true);
+}
+
+@fragment fn fsSky(@builtin(position) fc: vec4f) -> @location(0) vec4f {
+  var rd = viewRay(fc);
+  if (u.misc.x > 0.5) { rd.y = -rd.y; return vec4f(sky(rd) * 0.6, 1.0); }
+  return finish(sky(rd), 1e9, rd, fc, false);
+}
+
+// 椅子：畫的是那一排的外框，在裡面沿視線步進距離場，打到才上色並寫入真正的深度
+struct CO { @location(0) col: vec4f, @builtin(frag_depth) depth: f32 }
+@fragment fn fsChair(in: VO, @builtin(front_facing) ff: bool) -> CO {
+  var o: CO; o.col = vec4f(0.0); o.depth = 1.0;
+  let ro = u.camPos.xyz;
+  var rd = normalize(in.wp - ro);
+  rd += vec3f(1e-5, 1e-5, 1e-5) * step(abs(rd), vec3f(1e-5));
+  var t = -1.0;
+  if (ff) { t = marchChairs(ro, rd); }
+  if (t < 0.0) { discard; }
+  let p = ro + rd * t;
+  var h: Hit; h.t = t; h.n = chairN(p); h.mat = 11.0; h.par = 0.0; h.id = 0.0;
+  o.col = finish(shade(p, h, rd, false), t, rd, in.pos, true);
+  let z = dot(p - ro, u.camF.xyz);
+  o.depth = (z - NEAR) * FAR / ((FAR - NEAR) * z);
+  return o;
 }
 `;

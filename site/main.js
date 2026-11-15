@@ -84,7 +84,12 @@ const settle = (T) => { const s = Math.min(Math.floor(T), STOPS - 1), f = T - s;
 const AT = { w: 1024, h: 1136, split: 540, right: 560 };
 const atlas = document.createElement('canvas'); atlas.width = AT.w; atlas.height = AT.h;
 const actx = atlas.getContext('2d');
-const WALL = ['ueis-thanksgiving-trailer-2026', 'sg-01-waterproof-protector', 'sleepygulls-brand-film', 'ys-04-tuning-like-violin', 'ueis-milk-protein-lab', 'sg-04-mattress-sagging'];
+// 左牆六格＝六種溝通情境，一格一種（對應依檔名推測，待負責人確認）。只標情境，不標客戶
+const SCN = [
+  ['sleepygulls-brand-film', '品牌介紹', 'BRAND INTRODUCTION'], ['ys-01-new-device', '產品說明', 'PRODUCT EXPLAINER'], ['sg-04-mattress-sagging', '客服與常見問題', 'SUPPORT & FAQ'],
+  ['ueis-milk-protein-lab', '教育訓練', 'TRAINING'], ['ueis-thanksgiving-trailer-2026', '校園政策與活動', 'CAMPUS POLICY & EVENTS'], ['sg-02-fabric-pattern', '社群宣傳', 'SOCIAL CONTENT'],
+];
+const WALL = SCN.map((s) => s[0]);
 const slots = WALL.map((id, k) => ({ id, x: (k % 3) * (AT.w / 3), y: Math.floor(k / 3) * (AT.split / 2), w: AT.w / 3, h: AT.split / 2 }));
 slots.push({ id: 'welcome-to-fg-gvs', x: 0, y: AT.right, w: AT.w, h: AT.h - AT.right });
 function cover(src, sw, sh, s) {
@@ -111,9 +116,42 @@ function drawAtlas() {
 // ---------- HTML 介面 ----------
 const panels = [...document.querySelectorAll('.panel')];
 const dots = [...document.querySelectorAll('.rail button')];
+// 螢幕牆的六格：每格一顆貼在牆面上的按鈕（標題寫在格子左下角），點了鏡頭走到那一格正前方播放完整影片
+const TW = 11 / 3, TH = 2.9; // 一格的寬、高（公尺）
+let focus = -1, fTile = 0, fK = 0; // fK：鏡頭走向那一格的進度
+const playEl = $('#play'), playV = playEl.querySelector('video');
+const tiles = SCN.map(([id, zh, en], k) => {
+  const c = k % 3, r = Math.floor(k / 3), el = document.createElement('button');
+  el.className = 'wl tile'; el.dataset.o = `-9.86,${7.3 - r * TH},${21.5 - c * TW}`; el.dataset.r = '0,0,-1'; el.dataset.s = '0.005'; el.dataset.stops = '2'; el.dataset.seq = k + 1;
+  el.setAttribute('aria-label', `播放範例：${zh}`);
+  el.innerHTML = `<span class="cap"><b>0${k + 1}</b><span>${zh}</span><i>${en}</i></span>`;
+  el.addEventListener('click', (e) => { e.stopPropagation(); openTile(k); });
+  document.body.append(el);
+  // 播放範圍：影片在這一格裡不裁切時佔的大小（橫式貼齊格寬，直式貼齊格高）
+  const vert = /^(sg|ys)-/.test(id), w = vert ? TH * 9 / 16 : TW, h = vert ? TH : TW * 9 / 16;
+  return { el, id, w, h, c: [-9.87, 7.3 - (r + 0.5) * TH, 21.5 - (c + 0.5) * TW] };
+});
 const labels = [...document.querySelectorAll('.wl')].map((el) => ({
   el, o: el.dataset.o.split(',').map(Number), r: el.dataset.r.split(',').map(Number), s: +el.dataset.s, stops: (el.dataset.stops || '').split(',').filter(Boolean).map(Number),
+  seq: +(el.dataset.seq || 0), tile: el.classList.contains('tile'), play: el === playEl,
 }));
+const playL = labels.find((L) => L.play);
+function openTile(k) {
+  const t = tiles[k]; focus = fTile = k;
+  playL.o = [-9.86, t.c[1] + t.h / 2, t.c[2] + t.w / 2]; playEl.style.width = `${t.w / playL.s}px`; playEl.style.height = `${t.h / playL.s}px`;
+  playV.poster = `${MEDIA}posters/${tiles[k].id}.jpg`; playV.src = `${MEDIA}web/${tiles[k].id}.mp4`;
+  if (!qs.has('focus')) playV.play().catch(() => {});
+  document.documentElement.classList.add('lock');
+}
+function closeTile() {
+  if (focus < 0) return;
+  focus = -1; playV.pause(); document.documentElement.classList.remove('lock'); tiles[fTile].el.focus({ preventScroll: true });
+}
+if (qs.has('focus')) { openTile(+qs.get('focus')); fK = 1; } // 除錯：?t=2&focus=4 直接停在第 4 格前面
+playEl.querySelector('.x').addEventListener('click', (e) => { e.stopPropagation(); closeTile(); });
+addEventListener('click', (e) => { if (focus >= 0 && !playEl.contains(e.target)) closeTile(); });
+addEventListener('wheel', () => closeTile(), { passive: true }); // 一捲動就退回原位
+addEventListener('keydown', (e) => { if (e.key === 'Escape') closeTile(); });
 const vh = () => innerHeight;
 const SEG = 1.25; // 每一站的捲動長度（倍螢幕高）
 const setHeight = () => { $('#track').style.height = `${(STOPS * SEG + 1) * 100}vh`; };
@@ -123,6 +161,7 @@ const goto = (s) => scrollTo({ top: s * SEG * vh() + 1, behavior: 'smooth' });
 dots.forEach((b, k) => b.addEventListener('click', () => goto(k)));
 document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => goto(+b.dataset.go)));
 addEventListener('keydown', (e) => {
+  if (focus >= 0) return;
   const s = Math.round(scrollT());
   if (e.key === 'ArrowDown' || e.key === 'PageDown') { e.preventDefault(); goto(Math.min(s + 1, STOPS)); }
   if (e.key === 'ArrowUp' || e.key === 'PageUp') { e.preventDefault(); goto(Math.max(s - 1, 0)); }
@@ -171,17 +210,80 @@ async function start() {
   const info = await module.getCompilationInfo();
   const errs = info.messages.filter((m) => m.type === 'error');
   if (errs.length) { console.error(errs.map((m) => `${m.lineNum}:${m.linePos} ${m.message}`).join('\n')); return fallback('shader'); }
-  const pipeline = await device.createRenderPipelineAsync({
-    layout: 'auto', vertex: { module, entryPoint: 'vs' }, fragment: { module, entryPoint: 'fs', targets: [{ format }] }, primitive: { topology: 'triangle-list' },
-  });
+  // ---- 幾何：每個方塊六個面；地面一大片；椅子那一排的外框 ----
+  // 頂點：位置 3、法線 3、（材質、par、方塊編號）3
+  const V = [], I = [];
+  const addBox = (b, id) => {
+    const lo = [b[0], b[1], b[2]], hi = [b[4], b[5], b[6]];
+    for (let a = 0; a < 3; a++) for (const s of [-1, 1]) {
+      const a1 = (a + 1) % 3, a2 = (a + 2) % 3, base = V.length / 9, n = [0, 0, 0]; n[a] = s;
+      for (const [c1, c2] of s > 0 ? [[0, 0], [1, 0], [1, 1], [0, 1]] : [[0, 0], [0, 1], [1, 1], [1, 0]]) {
+        const p = [0, 0, 0]; p[a] = s > 0 ? hi[a] : lo[a]; p[a1] = c1 ? hi[a1] : lo[a1]; p[a2] = c2 ? hi[a2] : lo[a2];
+        V.push(...p, ...n, b[3], b[7], id);
+      }
+      I.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    }
+  };
+  boxes.forEach(addBox);
+  const nIdxOuter = nOuter * 36, nIdxBoxes = I.length;
+  { const base = V.length / 9, G = 1500; // 地面（材質 9）
+    for (const [x, z] of [[-G, -G], [-G, G], [G, G], [G, -G]]) V.push(x, 0, z, 0, 1, 0, 9, 0, 0);
+    I.push(base, base + 1, base + 2, base, base + 2, base + 3); }
+  const nIdxMain = I.length;
+  addBox([-5.0, 0, -8.15, 11, 5.0, 1.32, -7.38, 0], 0); // 椅子那一排的外框（與 shader.js 的 CH0／CH1 相同）
+  const vbuf = device.createBuffer({ size: V.length * 4, usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST });
+  device.queue.writeBuffer(vbuf, 0, new Float32Array(V));
+  const ibuf = device.createBuffer({ size: Math.ceil(I.length / 2) * 4, usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST });
+  device.queue.writeBuffer(ibuf, 0, new Uint16Array(Math.ceil(I.length / 2) * 2).map((_, k) => I[k] || 0));
 
-  const HEAD = 28, data = new Float32Array(HEAD + MAX_BOXES * 8 + MAX_LINES * 8);
+  // ---- 繪製流程 ----
+  const bgl = device.createBindGroupLayout({ entries: [
+    { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: {} },
+    { binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: {} },
+    { binding: 2, visibility: GPUShaderStage.FRAGMENT, sampler: {} },
+    { binding: 3, visibility: GPUShaderStage.FRAGMENT, texture: {} },
+  ] });
+  const layout = device.createPipelineLayout({ bindGroupLayouts: [bgl] });
+  const vbl = [{ arrayStride: 36, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }, { shaderLocation: 1, offset: 12, format: 'float32x3' }, { shaderLocation: 2, offset: 24, format: 'float32x3' }] }];
+  const MS = 4, RF = 'rgba16float';
+  const vsB = { module, entryPoint: 'vsBox', buffers: vbl }, vsS = { module, entryPoint: 'vsSky' };
+  const fr = (entryPoint, f) => ({ module, entryPoint, targets: [{ format: f }] });
+  const ds = (depthCompare, depthWriteEnabled) => ({ format: 'depth24plus', depthCompare, depthWriteEnabled });
+  const mk = (o) => device.createRenderPipelineAsync({ layout, multisample: { count: MS }, primitive: { topology: 'triangle-list', cullMode: 'none' }, ...o });
+  // 主畫面：先只寫深度（pPre），椅子（pChair）寫自己的深度，再用「深度相等」上色（pBox），每個像素只算一次；最後補天空
+  // 倒影：同一套幾何上下顛倒畫到一張半解析度左右的圖（pMBox、pMSky）
+  const [pPre, pChair, pBox, pSky, pMBox, pMSky] = await Promise.all([
+    mk({ vertex: vsB, fragment: { module, entryPoint: 'fsPre', targets: [{ format, writeMask: 0 }] }, depthStencil: ds('less', true) }),
+    mk({ vertex: vsB, fragment: fr('fsChair', format), depthStencil: ds('less', true) }),
+    mk({ vertex: vsB, fragment: fr('fsBox', format), depthStencil: ds('equal', false) }),
+    mk({ vertex: vsS, fragment: fr('fsSky', format), depthStencil: ds('equal', false) }),
+    mk({ vertex: vsB, fragment: fr('fsBox', RF), depthStencil: ds('less', true) }),
+    mk({ vertex: vsS, fragment: fr('fsSky', RF), depthStencil: ds('less-equal', false) }),
+  ]);
+
+  const HEAD = 32, data = new Float32Array(HEAD + MAX_BOXES * 8 + MAX_LINES * 8);
   boxes.forEach((b, k) => data.set(b, HEAD + k * 8));
   lines.forEach((l, k) => data.set(l, HEAD + MAX_BOXES * 8 + k * 8));
-  const ubuf = device.createBuffer({ size: data.byteLength, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  const mkU = () => device.createBuffer({ size: data.byteLength, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  const ubuf = mkU(), ubufM = mkU(); // ubufM：畫倒影用的那一份
   const tex = device.createTexture({ size: [AT.w, AT.h], format: 'rgba8unorm', usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT });
   const smp = device.createSampler({ magFilter: 'linear', minFilter: 'linear' });
-  const bind = device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: ubuf } }, { binding: 1, resource: tex.createView() }, { binding: 2, resource: smp }] });
+  const blank = device.createTexture({ size: [1, 1], format: 'rgba8unorm', usage: GPUTextureUsage.TEXTURE_BINDING });
+  const mkBind = (buffer, r) => device.createBindGroup({ layout: bgl, entries: [{ binding: 0, resource: { buffer } }, { binding: 1, resource: tex.createView() }, { binding: 2, resource: smp }, { binding: 3, resource: r.createView() }] });
+  const bindM = mkBind(ubufM, blank);
+  // 依畫布大小配置的材質：多重取樣的顏色與深度、倒影
+  let T2 = null;
+  function targets(w, h, rs) {
+    const rw = Math.max(2, Math.round(w * rs)), rh = Math.max(2, Math.round(h * rs));
+    if (T2 && T2.w === w && T2.h === h && T2.rw === rw) return T2;
+    if (T2) for (const t of T2.all) t.destroy();
+    const RA = GPUTextureUsage.RENDER_ATTACHMENT;
+    const mkT = (size, fmt, sampleCount, usage = RA) => device.createTexture({ size, format: fmt, sampleCount, usage });
+    const color = mkT([w, h], format, MS), depth = mkT([w, h], 'depth24plus', MS);
+    const rColor = mkT([rw, rh], RF, MS), rDepth = mkT([rw, rh], 'depth24plus', MS), rTex = mkT([rw, rh], RF, 1, RA | GPUTextureUsage.TEXTURE_BINDING);
+    T2 = { w, h, rw, rh, color, depth, rColor, rDepth, rTex, bind: mkBind(ubuf, rTex), all: [color, depth, rColor, rDepth, rTex] };
+    return T2;
+  }
 
   // 畫質分兩級：高＝地面做完整的一次反射；低＝反射只看大件、不算逐燈光照，解析度上限也低一點
   // 手機一開始就用低畫質；其他裝置先用高畫質，跑不動再自動換成低畫質（不會自己換回去）。?q=high／low 可以固定
@@ -194,7 +296,7 @@ async function start() {
   const MIN = 0.45, cap = () => (hq ? 1.5 : 1.25);
   let scale = qs.has('scale') ? +qs.get('scale') : Math.min(devicePixelRatio, cap()), acc = 0, frames = 0, best = 1e9, cool = 0, coolN = 20, slowN = 0, dead = false;
   const fixedScale = qs.has('scale');
-  let W = 0, H = 0;
+  let W = 0, H = 0, longN = 0;
   function resize() {
     W = innerWidth; H = innerHeight;
     canvas.width = Math.max(2, Math.round(W * scale)); canvas.height = Math.max(2, Math.round(H * scale));
@@ -232,23 +334,46 @@ async function start() {
     c.p[0] += t4 * 1.5 - k1 * 1.5; c.l[0] += t4 * 1.2; c.p[2] += t4 * 0.9 + tall * k3 * 1.6; c.l[2] += k1 * 2.5;
     const hfov = (27 + 6 * k3 - 6 * k4) * Math.PI / 180;
     const tanH = Math.max(Math.tan(24 * Math.PI / 180), Math.tan(hfov) / aspect);
-    const sway = fixedT != null ? 0 : 1;
+    // 點了螢幕牆的一格：鏡頭從這一站的位置走到那一格正前方，剛好把那一格框滿；關掉就沿原路退回
+    const fT = focus >= 0 ? 1 : 0; fK += (fT - fK) * (1 - Math.exp(-dt * 3.2)); if (Math.abs(fT - fK) < 0.002) fK = fT;
+    if (fK > 0) {
+      const ft = tiles[fTile], tc = ft.c, d = Math.max(ft.h / 2 / tanH, ft.w / 2 / (tanH * aspect)) / 0.86, e = fK * fK * (3 - 2 * fK);
+      const fp = [tc[0] + d, tc[1], tc[2]];
+      for (let j = 0; j < 3; j++) { c.p[j] += (fp[j] - c.p[j]) * e; c.l[j] += (tc[j] - c.l[j]) * e; }
+      if (fK < 0.02 && focus < 0 && playV.hasAttribute('src')) { playV.removeAttribute('src'); playV.load(); }
+    }
+    const sway = (fixedT != null ? 0 : 1) * (1 - fK);
     const p = [c.p[0] + mx * 0.5 * sway, c.p[1] - my * 0.25 * sway + Math.sin(time * 0.4) * 0.03 * sway, c.p[2]];
     let f = [c.l[0] - p[0], c.l[1] - p[1], c.l[2] - p[2]]; const fl = Math.hypot(...f); f = f.map((x) => x / fl);
     let r = [-f[2], 0, f[0]]; const rl = Math.hypot(...r); r = r.map((x) => x / rl);
     const up = [r[1] * f[2] - r[2] * f[1], r[2] * f[0] - r[0] * f[2], r[0] * f[1] - r[1] * f[0]];
 
     data.set([p[0], p[1], p[2], time, f[0], f[1], f[2], tanH, r[0], r[1], r[2], aspect, up[0], up[1], up[2], warmOn,
-      canvas.width, canvas.height, boxes.length, lines.length, T, AT.split / AT.h, AT.right / AT.h, 0, nOuter, glassOn, hq ? 1 : 0, 0]);
+      canvas.width, canvas.height, boxes.length, lines.length, T, AT.split / AT.h, AT.right / AT.h, 0, nOuter, glassOn, hq ? 1 : 0, 0, 0, 0, 0, 0]);
     device.queue.writeBuffer(ubuf, 0, data);
+    const cw = canvas.width, chh = canvas.height, G = targets(cw, chh, hq ? 0.6 : 0.5);
+    data[16] = G.rw; data[17] = G.rh; data[28] = 1; device.queue.writeBuffer(ubufM, 0, data); // 倒影那一份：解析度換成倒影圖的大小
     drawAtlas();
     if (atlasDirty && !qs.has('noatlas')) { device.queue.copyExternalImageToTexture({ source: atlas }, { texture: tex }, [AT.w, AT.h]); atlasDirty = false; }
 
     const enc = device.createCommandEncoder();
-    const cw = canvas.width, chh = canvas.height;
     const rt = OFF ? device.createTexture({ size: [cw, chh], format, usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC }) : null;
-    const pass = enc.beginRenderPass({ colorAttachments: [{ view: (OFF ? rt : ctx.getCurrentTexture()).createView(), loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 1] }] });
-    pass.setPipeline(pipeline); pass.setBindGroup(0, bind); pass.draw(3); pass.end();
+    const att = (view, resolveTarget) => ({ view, resolveTarget, loadOp: 'clear', storeOp: 'discard', clearValue: [0, 0, 0, 1] });
+    const dep = (t) => ({ view: t.createView(), depthClearValue: 1, depthLoadOp: 'clear', depthStoreOp: 'discard' });
+    // 一、地面倒影：場景上下顛倒畫一次。高畫質連作業中心的小件一起倒映，低畫質只倒映大件
+    let pass = enc.beginRenderPass({ colorAttachments: [att(G.rColor.createView(), G.rTex.createView())], depthStencilAttachment: dep(G.rDepth) });
+    pass.setBindGroup(0, bindM); pass.setVertexBuffer(0, vbuf); pass.setIndexBuffer(ibuf, 'uint16');
+    pass.setPipeline(pMBox); pass.drawIndexed(hq ? nIdxBoxes : nIdxOuter);
+    pass.setPipeline(pMSky); pass.draw(3);
+    pass.end();
+    // 二、主畫面
+    pass = enc.beginRenderPass({ colorAttachments: [att(G.color.createView(), (OFF ? rt : ctx.getCurrentTexture()).createView())], depthStencilAttachment: dep(G.depth) });
+    pass.setBindGroup(0, G.bind); pass.setVertexBuffer(0, vbuf); pass.setIndexBuffer(ibuf, 'uint16');
+    pass.setPipeline(pPre); pass.drawIndexed(nIdxMain);
+    pass.setPipeline(pChair); pass.drawIndexed(36, 1, nIdxMain);
+    pass.setPipeline(pBox); pass.drawIndexed(nIdxMain);
+    pass.setPipeline(pSky); pass.draw(3);
+    pass.end();
     let rb = null; const bpr = Math.ceil(cw * 4 / 256) * 256;
     if (OFF) { rb = device.createBuffer({ size: bpr * chh, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ }); enc.copyTextureToBuffer({ texture: rt }, { buffer: rb, bytesPerRow: bpr }, [cw, chh]); }
     device.queue.submit([enc.finish()]);
@@ -263,18 +388,27 @@ async function start() {
     const row = (a, b, k, d) => ({ v: [a[0] * k + b[0] * d, a[1] * k + b[1] * d, a[2] * k + b[2] * d] });
     const X = row(r, f, kx, W / 2).v, Y = row(up, f, -ky, H / 2).v, Wv = f;
     const dotp = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-    const s = Math.round(Ts);
+    // 進退場跟著鏡頭：標示貼在牆上，鏡頭走近那一站就依序亮起（先標題、再一格一格），走遠就依序暗掉；往回捲就倒著來
     for (const L of labels) {
       const A = L.r.map((x) => x * L.s), B = [0, -L.s, 0], O = [L.o[0] - p[0], L.o[1] - p[1], L.o[2] - p[2]];
       const w = dotp(Wv, O);
-      const show = w > 0.6 && (!L.stops.length || L.stops.includes(s));
-      L.el.style.opacity = show ? 1 : 0;
+      let near = L.stops.length ? 0 : 1;
+      for (const st of L.stops) near = Math.max(near, 1 - Math.min(Math.abs(T - st) * 2.2, 1));
+      let k = Math.min(Math.max(near * 2.2 - 0.25 - L.seq * 0.13, 0), 1);
+      if (L.play) k = Math.min(Math.max((fK - 0.7) / 0.25, 0), 1); else k *= 1 - Math.min(fK * 3, 1); // 走向某一格時，牆上其他的字先暗掉
+      if (w <= 0.6) k = 0;
+      L.el.style.opacity = k; L.el.style.setProperty('--k', k);
+      if (L.tile || L.play) L.el.classList.toggle('hot', L.play ? fK > 0.9 : k > 0.9 && focus < 0);
       if (w <= 0.6) continue;
       const m = [dotp(X, A), dotp(Y, A), 0, dotp(Wv, A), dotp(X, B), dotp(Y, B), 0, dotp(Wv, B), 0, 0, 1, 0, dotp(X, O), dotp(Y, O), 0, w];
       L.el.style.transform = `matrix3d(${m.map((x) => x.toFixed(5)).join(',')})`;
     }
 
-    if (!fixedScale) { // 太慢就降解析度，夠快再升回來
+    // 偶發的卡頓不算：剛啟動的 1.5 秒（載入、影片開始解碼）、分頁在背景、單獨幾格特別長的，都不列入統計。
+    // 不然這些暫時的慢會把解析度一路降到最低
+    longN = dt >= 0.09 ? longN + 1 : 0;
+    const steady = now - t0 > 1500 && !document.hidden && (longN === 0 || longN > 6);
+    if (!fixedScale && steady) { // 太慢就降解析度，夠快再升回來
       acc += dt; frames++;
       if (frames >= 30) {
         const ms = acc / frames * 1000; acc = 0; frames = 0;
@@ -286,7 +420,8 @@ async function start() {
         // 高畫質已經降到一倍以下還是慢，或連兩次不到 30 幀：換成低畫質，解析度留著
         if (slow && hq && !fixedQ && (scale <= 1.0 || (ms > 33 && slowHi >= 2))) { hq = false; setQ(); cool = 4; }
         else if (slow && scale > MIN) { scale = Math.max(MIN, scale * 0.85); cool = coolN; coolN = Math.min(coolN * 2, 320); resize(); }
-        else if (ms < best * 1.12 && cool === 0 && scale < cap()) { scale = Math.min(cap(), scale * 1.1); resize(); }
+        // 升回來的條件：貼著螢幕更新率，或至少有 74 幀。只看前者的話，144 Hz 的螢幕上跑 75 幀永遠升不回來，畫面就卡在最低解析度
+        else if (ms < Math.max(best * 1.12, 13.5) && cool === 0 && scale < cap()) { scale = Math.min(cap(), scale * 1.1); resize(); }
         // 降到最低解析度還是不到 20 幀，連續三次就換成靜態版本
         if (scale <= MIN && ms > 50) { if (++slowN >= 3) { dead = true; fallback('too slow'); } } else slowN = 0;
       }

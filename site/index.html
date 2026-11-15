@@ -28,7 +28,7 @@ header { position: fixed; z-index: 5; top: 0; left: 0; right: 0; display: flex; 
 .menu { width: 26px; height: 14px; border: 0; background: linear-gradient(var(--ink), var(--ink)) top/100% 1.5px no-repeat, linear-gradient(var(--ink), var(--ink)) bottom/100% 1.5px no-repeat; cursor: pointer; }
 
 /* 貼在場景表面的標示（由 main.js 做透視） */
-.wl { position: fixed; z-index: 1; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; white-space: nowrap; opacity: 0; transition: opacity .6s; will-change: transform; color: #f4efe6; text-shadow: 0 0 18px rgba(255,220,170,.35); }
+.wl { position: fixed; z-index: 1; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; white-space: nowrap; opacity: 0; will-change: transform; color: #f4efe6; text-shadow: 0 0 18px rgba(255,220,170,.35); }
 .wl small { display: block; font-size: 30px; letter-spacing: .2em; opacity: .75; }
 .wl small::before { content: ""; display: block; width: 64px; height: 2px; background: currentColor; margin-bottom: 26px; }
 .wl b { display: block; font-weight: 300; font-size: 56px; letter-spacing: .12em; line-height: 1.25; }
@@ -36,6 +36,24 @@ header { position: fixed; z-index: 5; top: 0; left: 0; right: 0; display: flex; 
 .wl.desk { display: flex; align-items: center; gap: 34px; font-size: 30px; letter-spacing: .28em; }
 .wl.desk img { height: 58px; }
 .wl.desk span { width: 1.5px; height: 64px; background: currentColor; opacity: .6; }
+.wl em { display: block; font-style: normal; font-size: 27px; letter-spacing: .12em; opacity: .72; margin-top: 20px; }
+/* 螢幕牆的一格：整格是按鈕，標題在左下角，隨鏡頭走近由左往右亮起 */
+.wl.tile { width: 733px; height: 580px; padding: 0; border: 0; background: none; cursor: pointer; text-align: left; font: inherit; letter-spacing: inherit; text-shadow: 0 0 14px rgba(0,0,0,.8); }
+.wl.hot { pointer-events: auto; }
+.wl.tile::before { content: ""; position: absolute; inset: 0; border: 3px solid transparent; background: linear-gradient(0deg, rgba(3,4,7,.82), transparent 48%); transition: border-color .3s; }
+.wl.tile:hover::before, .wl.tile:focus-visible::before { border-color: rgba(255,240,215,.85); }
+.wl.tile:focus-visible { outline: none; }
+.wl .cap { position: absolute; left: 40px; bottom: 34px; clip-path: inset(0 calc((1 - var(--k, 0)) * 100%) 0 0); }
+.wl .cap b { font-size: 30px; font-weight: 400; letter-spacing: .26em; color: var(--warm); line-height: 1.4; }
+.wl .cap span { display: block; font-size: 74px; letter-spacing: .1em; line-height: 1.3; }
+.wl .cap i { font-size: 27px; letter-spacing: .22em; opacity: .78; }
+/* 走到一格正前方時，疊在那一格上的播放器（跟牆面同一個透視） */
+.wl.play { width: 917px; height: 516px; background: #000; box-shadow: 0 0 0 6000px rgba(2,3,5,.8); }
+html.lock .rail { opacity: 0; pointer-events: none; }
+.wl.play video { display: block; width: 100%; height: 100%; object-fit: contain; }
+.wl.play .x { position: absolute; top: 8px; right: 14px; border: 0; background: none; cursor: pointer; font-size: 44px; font-weight: 300; line-height: 1; text-shadow: 0 0 10px #000; }
+html.lock, html.lock body { overflow: hidden; }
+body:not(.nogpu) .panel.inwall { display: none; }
 .wl.ops { font-size: 34px; letter-spacing: .32em; color: #2a2118; text-shadow: none; opacity: .0; }
 
 /* 每一站的說明 */
@@ -93,7 +111,8 @@ body.ready #load, body.nogpu #load { opacity: 0; visibility: hidden; }
 <div class="shade"></div>
 
 <!-- 場景表面上的標示：data-o 原點（公尺）、data-r 文字方向、data-s 每像素幾公尺 -->
-<div class="wl" data-o="-9.86,10.9,21.3" data-r="0,0,-1" data-s="0.0165" data-stops="2"><small>PORTFOLIO</small><b>BRAND CONTENT</b><i>廣告行銷</i></div>
+<div class="wl" data-o="-9.86,11.45,21.3" data-r="0,0,-1" data-s="0.0145" data-stops="2"><small>GLOBAL VIDEO SERVICE</small><b>六種溝通情境</b><i>SIX COMMUNICATION SCENARIOS</i><em>一支影片，解決一個溝通任務。點任一格看範例。</em></div>
+<div class="wl play" id="play" data-o="0,0,0" data-r="0,0,-1" data-s="0.004"><video controls playsinline></video><button class="x" aria-label="關閉">×</button></div>
 <div class="wl" data-o="9.86,11.3,10.7" data-r="0,0,1" data-s="0.0165" data-stops="1"><small>GVS</small><b>BRAND FILM</b><i>形象影片</i></div>
 <div class="wl desk" data-o="0.5,0.86,3.02" data-r="1,0,0" data-s="0.0056" data-stops="0,4"><img src="assets/fg.png" alt="FG"><span></span>CUSTOMER SERVICE</div>
 
@@ -119,10 +138,10 @@ body.ready #load, body.nogpu #load { opacity: 0; visibility: hidden; }
   <div class="acts"><button class="btn" data-film="videos/Welcome_to_FG_GVS.mp4">播放形象影片</button></div>
 </section>
 
-<section class="panel">
-  <div class="no">02 — PORTFOLIO</div>
-  <h2 class="dup">BRAND CONTENT</h2>
-  <p>品牌客製化影像製作，為不同產業打造專屬的影像風格。螢幕牆上播放的都是實際作品。</p>
+<section class="panel inwall">
+  <div class="no">02 — GLOBAL VIDEO SERVICE</div>
+  <h2>六種溝通情境</h2>
+  <p>一支影片，解決一個溝通任務：品牌介紹、產品說明、客服與常見問題、教育訓練、校園政策與活動、社群宣傳。</p>
 </section>
 
 <section class="panel">
