@@ -210,8 +210,18 @@ setSel(1);
 document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); openView(b.dataset.view); }));
 // 玻璃上的按鈕：玻璃沉回去，帶著選的方案走到接待櫃檯那一站；那裡的「開始洽談」會把方案寫進信件主旨
 const talk = $('#talk'), MAIL = talk.getAttribute('href').split('?')[0];
+// 「開始洽談」打開兩個選項：寫信（#talk）或官方 LINE。官方 LINE 的加好友網址只寫在這裡一處；還沒填的時候 LINE 的選項不顯示
+const LINE_URL = '';
+document.querySelectorAll('.line-link').forEach((a) => { if (LINE_URL) a.href = LINE_URL; else a.hidden = true; });
+const talkBtn = $('#talkBtn'), talkMenu = $('#talkMenu');
+const showTalk = (on) => { talkMenu.hidden = !on; talkBtn.setAttribute('aria-expanded', on); };
+// 「開始洽談」的信件主旨：一般洽談，或從方案頁帶過來的方案（planHref）；「申請 GVS 免費試做」開同一組選項，主旨換成免費試做
+let planHref = talk.getAttribute('href'), talkFor = '';
+const openTalk = (kind, href) => { const same = !talkMenu.hidden && talkFor === kind; talkFor = kind; talk.href = href; showTalk(!same); };
+talkBtn.addEventListener('click', (e) => { e.stopPropagation(); openTalk('talk', planHref); });
+$('#trialBtn').addEventListener('click', (e) => { e.stopPropagation(); openTalk('trial', `${MAIL}?subject=${encodeURIComponent(lang === 'en' ? 'FG STUDIO Inquiry: GVS free trial' : 'FG STUDIO 洽談：申請 GVS 免費試做')}`); });
 document.querySelectorAll('.go[data-plan]').forEach((b) => b.addEventListener('click', (e) => {
-  e.stopPropagation(); talk.href = `${MAIL}?subject=${encodeURIComponent(lang === 'en' ? 'FG STUDIO Inquiry: ' + (b.dataset.planEn || b.dataset.plan) : 'FG STUDIO 洽談：' + b.dataset.plan)}`; talk.dataset.plan = b.dataset.plan;
+  e.stopPropagation(); planHref = `${MAIL}?subject=${encodeURIComponent(lang === 'en' ? 'FG STUDIO Inquiry: ' + (b.dataset.planEn || b.dataset.plan) : 'FG STUDIO 洽談：' + b.dataset.plan)}`; talk.href = planHref; talk.dataset.plan = b.dataset.plan;
   closeView(); goto(4);
 }));
 selBtns.forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); setSel(+b.dataset.sel); }));
@@ -348,6 +358,7 @@ function ui(T) {
   dots.forEach((d, k) => d.classList.toggle('on', k === s));
   prevB.disabled = s === 0; nextB.disabled = s === STOPS;
   if (s !== 2 && !pickMenu.hidden) showMenu(false);
+  if (s !== 4 && !talkMenu.hidden) showTalk(false);
   document.body.dataset.stop = s;
 }
 
