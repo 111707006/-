@@ -94,12 +94,16 @@ if (btn) {
   let saved = null; try { saved = localStorage.getItem('music'); } catch {}
   if (saved !== 'off') {
     on = true; btn.classList.add('on'); btn.setAttribute('aria-pressed', true);
-    const first = (e) => {
+    start(); fade(4); // 有些瀏覽器（或訪客常來的網站）允許直接出聲，這時一進來就有音樂
+    // 其他的要等訪客第一次操作。手機上手指按下去那一刻還不算，要放開（touchend／click）才算，所以幾種都聽，直到真的出聲為止
+    const EVS = ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'];
+    const done = () => EVS.forEach((ev) => removeEventListener(ev, kick, true));
+    const kick = (e) => {
       if (e.target.closest && e.target.closest('#musicBtn')) return; // 第一下就是按開關的人，交給開關處理（等於關掉）
-      ['pointerdown', 'keydown'].forEach((ev) => removeEventListener(ev, first, true));
-      if (on) { start(); fade(4); }
+      if (!on) return done();
+      ctx.resume().then(() => { if (ctx.state === 'running') { done(); fade(4); } });
     };
-    ['pointerdown', 'keydown'].forEach((ev) => addEventListener(ev, first, true));
+    EVS.forEach((ev) => addEventListener(ev, kick, true));
   }
 
   // 作品影片在播的時候讓位
