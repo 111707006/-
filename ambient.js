@@ -88,7 +88,11 @@ if (btn) {
     try { localStorage.setItem('music', on ? 'on' : 'off'); } catch {}
     if (on) { start(); fade(3); } else if (ctx) { fade(1.2); setTimeout(() => { if (!on) { clearInterval(timer); ctx.suspend(); } }, 1400); }
   };
-  btn.addEventListener('click', (e) => { e.stopPropagation(); set(!on); });
+  const playing = () => ctx && ctx.state === 'running';
+  // 開關顯示開著、但瀏覽器還沒讓它出聲的時候，按開關＝讓它出聲，而不是關掉
+  btn.addEventListener('click', (e) => { e.stopPropagation(); if (on && !playing()) { start(); fade(3); } else set(!on); });
+  // 按 ENTER 進場：一律開音樂（之前關掉過的也一樣），這一下點擊就是瀏覽器要的「使用者操作」
+  addEventListener('fg-enter', () => set(true));
 
   // 預設開啟（除非訪客之前自己關掉）：開關先顯示成開著，等第一次點畫面或按鍵才真的出聲
   let saved = null; try { saved = localStorage.getItem('music'); } catch {}
@@ -99,7 +103,7 @@ if (btn) {
     const EVS = ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'];
     const done = () => EVS.forEach((ev) => removeEventListener(ev, kick, true));
     const kick = (e) => {
-      if (e.target.closest && e.target.closest('#musicBtn')) return; // 第一下就是按開關的人，交給開關處理（等於關掉）
+      if (e.target.closest && e.target.closest('#musicBtn')) return; // 按開關的交給開關處理
       if (!on) return done();
       ctx.resume().then(() => { if (ctx.state === 'running') { done(); fade(4); } });
     };

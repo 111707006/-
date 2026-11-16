@@ -346,11 +346,10 @@ addEventListener('pointermove', (e) => { document.body.classList.toggle('pick', 
 let introK = 1; // 開場鏡頭的進度：0 最遠，1 就定位
 // 進場：音樂開著的話，載入好先停在「ENTER」，點了才進場、開場鏡頭才開始走（這一下也讓瀏覽器允許出聲）。
 // 音樂被訪客關掉過、或網址帶 ?noenter，就跳過這一步直接進場
-let entered = false, musicOff = false;
-try { musicOff = localStorage.getItem('music') === 'off'; } catch {}
-const enter = () => { if (entered) return; entered = true; document.body.classList.add('entered'); };
+let entered = false;
+const enter = () => { if (entered) return; entered = true; document.body.classList.add('entered'); dispatchEvent(new Event('fg-enter')); }; // fg-enter：ambient.js 收到就開音樂（同一下點擊裡，瀏覽器才准出聲）
 $('#enter').addEventListener('click', (e) => { e.stopPropagation(); enter(); });
-const loaded = () => { if (musicOff || qs.has('noenter')) enter(); else $('#enter').focus({ preventScroll: true }); };
+const loaded = () => { if (qs.has('noenter')) enter(); else $('#enter').focus({ preventScroll: true }); };
 function ui(T) {
   const s = Math.round(T), near = 1 - Math.min(Math.abs(T - s) * 3.2, 1);
   panels.forEach((p, k) => { const on = k === s && near > 0.25 && (k !== 0 || introK > 0.82) && !view && focus < 0; p.classList.toggle('on', on); p.style.setProperty('--k', k === s ? near : 0); });
