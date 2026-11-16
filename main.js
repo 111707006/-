@@ -309,6 +309,15 @@ const closeLb = () => { lb.hidden = true; lbv.pause(); lbv.removeAttribute('src'
 lb.addEventListener('click', (e) => { if (e.target === lb || e.target.closest('.x')) closeLb(); });
 addEventListener('keydown', (e) => { if (e.key === 'Escape' && !lb.hidden) closeLb(); });
 
+// 廣告投放的說明：牆上的板子、第 02 站的按鈕都打開；「洽談廣告投放」走 .go[data-plan] 那一套（帶主旨到聯絡那一站）
+const adsEl = $('#ads');
+const openAds = (e) => { e.stopPropagation(); showMenu(false); adsEl.hidden = false; adsEl.querySelector('.x').focus({ preventScroll: true }); };
+const closeAds = () => { adsEl.hidden = true; };
+$('#adsTile').addEventListener('click', openAds); $('#adsBtn').addEventListener('click', openAds);
+adsEl.addEventListener('click', (e) => { if (e.target === adsEl || e.target.closest('.x')) closeAds(); });
+adsEl.querySelector('.go').addEventListener('click', closeAds); // .go 自己會擋住冒泡，所以直接掛在它身上
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && !adsEl.hidden) closeAds(); });
+
 let mx = 0, my = 0;
 addEventListener('pointermove', (e) => { mx = e.clientX / innerWidth - 0.5; my = e.clientY / innerHeight - 0.5; });
 
@@ -338,7 +347,7 @@ function pick(cx, cy) {
   if (cur === 3 && hit >= nOuter) return FILM;
   return stop === cur ? -1 : stop;
 }
-const free = (e) => !e.target.closest('button, a, input, video, .glass, #vbar, #lightbox');
+const free = (e) => !e.target.closest('button, a, input, video, .glass, #vbar, #lightbox, #ads');
 canvas.addEventListener('click', () => {}); // iOS Safari：元素自己沒有 click 監聽的話，點它不會送出 click，下面掛在 window 上的就收不到
 addEventListener('click', (e) => { if (!free(e)) return; const s = pick(e.clientX, e.clientY); if (s === FILM) openFilm(OPS_FILM); else if (s >= 0) fly(s); });
 addEventListener('pointermove', (e) => { document.body.classList.toggle('pick', e.pointerType === 'mouse' && free(e) && pick(e.clientX, e.clientY) >= 0); });
