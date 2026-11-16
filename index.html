@@ -285,8 +285,9 @@ body:not(.nogpu) .panel h2.dup + p { margin-top: 10px; }
 .panel.pass.on .acts, .panel.pass.on .menu { pointer-events: auto; }
 /* 六種情境的選單：不想點牆的人從這裡選一支範例 */
 .menu { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; max-width: 460px; }
-.menu button { display: flex; align-items: baseline; gap: 10px; padding: 11px 14px; border: 1px solid var(--line); background: rgba(8,10,14,.62); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); cursor: pointer; text-align: left; font-size: 13.5px; letter-spacing: .08em; line-height: 1.35; transition: border-color .25s; }
-.menu button:hover, .menu button:focus-visible { border-color: var(--ink); }
+.menu button, .menu a { display: flex; align-items: baseline; gap: 10px; padding: 11px 14px; border: 1px solid var(--line); background: rgba(8,10,14,.62); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); cursor: pointer; text-align: left; font-size: 13.5px; letter-spacing: .08em; line-height: 1.35; transition: border-color .25s; }
+.menu a { text-decoration: none; }
+.menu button:hover, .menu button:focus-visible, .menu a:hover, .menu a:focus-visible { border-color: var(--ink); }
 .menu b { font-weight: 400; font-size: 11px; letter-spacing: .2em; color: var(--warm); }
 .panel .acts { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
 .btn { display: inline-flex; align-items: center; gap: 12px; padding: 13px 22px; border: 1px solid var(--line); background: rgba(8,10,14,.45); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); text-decoration: none; cursor: pointer; font-size: 13px; letter-spacing: .2em; text-transform: uppercase; transition: background .25s, border-color .25s, color .25s; }
@@ -428,7 +429,8 @@ body.ready #load, body.nogpu #load { opacity: 0; visibility: hidden; }
   <h2 class="dup">CUSTOMER SERVICE</h2>
   <p data-en="Tell us what you want to get across: your brand, the audience you want to reach, and what you want the video to achieve.">聊聊你想說清楚的事：你的品牌、想觸及的受眾，以及希望影像達成的目標。</p>
   <p class="trust" data-en="Formal contract · Optional NDA · You decide whether the work goes public">正式合約 · NDA 可選 · 作品是否公開由你決定</p>
-  <div class="acts"><a class="btn solid" id="talk" href="mailto:forgod20232023@gmail.com?subject=FG%20STUDIO%20Project%20Inquiry" data-en="Start a Conversation">開始洽談</a><button class="btn" id="cardBtn" data-en="Business Card">名片</button></div>
+  <div class="menu" id="talkMenu" hidden><a id="talk" href="mailto:forgod20232023@gmail.com?subject=FG%20STUDIO%20Project%20Inquiry"><b>EMAIL</b><span data-en="Write to us">寫信洽談</span></a><a class="line-link" target="_blank" rel="noopener"><b>LINE</b><span data-en="Official LINE">官方 LINE</span></a></div>
+  <div class="acts"><button class="btn solid" id="talkBtn" aria-expanded="false" aria-controls="talkMenu" data-en="Start a Conversation">開始洽談</button><button class="btn" id="cardBtn" data-en="Business Card">名片</button></div>
   <p class="foot">© 2026 FG STUDIO · FOR GOD</p>
 </section>
 
@@ -449,7 +451,7 @@ body.ready #load, body.nogpu #load { opacity: 0; visibility: hidden; }
     <div class="ways">
       <a href="mailto:forgod20232023@gmail.com"><b>EMAIL</b>forgod20232023@gmail.com</a>
       <a href="tel:+886938515118"><b data-en="PHONE">電話</b>+886 938 515 118</a>
-      <a href="https://line.me/ti/p/~messi920927" target="_blank" rel="noopener"><b>LINE</b><span data-en="Add messi920927">加入好友 messi920927</span></a>
+      <a class="line-link" target="_blank" rel="noopener"><b>LINE</b><span data-en="Add our official LINE">加入官方 LINE</span></a>
       <a href="https://www.instagram.com/for_g_studio/" target="_blank" rel="noopener"><b>INSTAGRAM</b>@for_g_studio</a>
     </div>
   </div>
