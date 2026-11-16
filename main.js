@@ -215,11 +215,10 @@ const LINE_URL = '';
 document.querySelectorAll('.line-link').forEach((a) => { if (LINE_URL) a.href = LINE_URL; else a.hidden = true; });
 const talkBtn = $('#talkBtn'), talkMenu = $('#talkMenu');
 const showTalk = (on) => { talkMenu.hidden = !on; talkBtn.setAttribute('aria-expanded', on); };
-// 「開始洽談」的信件主旨：一般洽談，或從方案頁帶過來的方案（planHref）；「申請 GVS 免費試做」開同一組選項，主旨換成免費試做
+// 「開始洽談」的信件主旨：一般洽談，或從方案頁帶過來的方案（planHref）
 let planHref = talk.getAttribute('href'), talkFor = '';
 const openTalk = (kind, href) => { const same = !talkMenu.hidden && talkFor === kind; talkFor = kind; talk.href = href; showTalk(!same); };
 talkBtn.addEventListener('click', (e) => { e.stopPropagation(); openTalk('talk', planHref); });
-$('#trialBtn').addEventListener('click', (e) => { e.stopPropagation(); openTalk('trial', `${MAIL}?subject=${encodeURIComponent(lang === 'en' ? 'FG STUDIO Inquiry: GVS free trial' : 'FG STUDIO 洽談：申請 GVS 免費試做')}`); });
 document.querySelectorAll('.go[data-plan]').forEach((b) => b.addEventListener('click', (e) => {
   e.stopPropagation(); planHref = `${MAIL}?subject=${encodeURIComponent(lang === 'en' ? 'FG STUDIO Inquiry: ' + (b.dataset.planEn || b.dataset.plan) : 'FG STUDIO 洽談：' + b.dataset.plan)}`; talk.href = planHref; talk.dataset.plan = b.dataset.plan;
   closeView(); goto(4);
@@ -270,7 +269,7 @@ const NOTE = { // 靜態版本的提示：一般（不支援）、跑太慢、�
   'too slow': ['此裝置跑 3D 場景太吃力，顯示靜態版本', 'The 3D scene is too heavy for this device. Showing the static version.'],
   'device lost': ['顯示裝置中斷，顯示靜態版本（重新整理可再試一次）', 'Graphics device lost. Showing the static version (reload to try again).'],
 };
-const EN_TITLE = "FG STUDIO | GVS Brand Video Production & Long-Term Short-Form Video", EN_DESC = "GVS (Global Video Service) by FG STUDIO: long-term video production for brands, companies and schools. Brand introductions, product explainers, support & FAQ, training, campus policy & events, short-form social. From NT$2,000 per video; VIP covers 15 videos a month.";
+const EN_TITLE = "FG STUDIO | GVS Brand Video Production & Long-Term Short-Form Video", EN_DESC = "GVS (Global Video Service) by FG STUDIO: long-term video production for brands, companies and schools. Brand introductions, product explainers, support & FAQ, training, campus policy & events, short-form social. From NT$2,000 per video; VIP covers 15 videos a month. Free trial of 1–3 videos.";
 const metaEl = (sel) => document.querySelector(sel);
 const META = [[document, 'title', document.title, EN_TITLE], ...['meta[name=description]', 'meta[property="og:description"]', 'meta[name="twitter:description"]'].map((s) => [metaEl(s), 'content', metaEl(s)?.content, EN_DESC]),
   ...['meta[property="og:title"]', 'meta[name="twitter:title"]'].map((s) => [metaEl(s), 'content', metaEl(s)?.content, EN_TITLE])];
