@@ -344,6 +344,13 @@ addEventListener('click', (e) => { if (!free(e)) return; const s = pick(e.client
 addEventListener('pointermove', (e) => { document.body.classList.toggle('pick', e.pointerType === 'mouse' && free(e) && pick(e.clientX, e.clientY) >= 0); });
 
 let introK = 1; // 開場鏡頭的進度：0 最遠，1 就定位
+// 進場：音樂開著的話，載入好先停在「START」，點了才進場、開場鏡頭才開始走（這一下也讓瀏覽器允許出聲）。
+// 音樂被訪客關掉過、或網址帶 ?noenter，就跳過這一步直接進場
+let entered = false, musicOff = false;
+try { musicOff = localStorage.getItem('music') === 'off'; } catch {}
+const enter = () => { if (entered) return; entered = true; document.body.classList.add('entered'); };
+$('#enter').addEventListener('click', (e) => { e.stopPropagation(); enter(); });
+const loaded = () => { if (musicOff || qs.has('noenter')) enter(); else $('#enter').focus({ preventScroll: true }); };
 function ui(T) {
   const s = Math.round(T), near = 1 - Math.min(Math.abs(T - s) * 3.2, 1);
   panels.forEach((p, k) => { const on = k === s && near > 0.25 && (k !== 0 || introK > 0.82) && !view && focus < 0; p.classList.toggle('on', on); p.style.setProperty('--k', k === s ? near : 0); });
@@ -356,7 +363,7 @@ function ui(T) {
 
 // ---------- 啟動 ----------
 function fallback(msg) {
-  document.body.classList.add('nogpu'); introK = 1;
+  document.body.classList.add('nogpu'); introK = 1; loaded();
   console.warn('3D unavailable:', msg);
   noteMsg = msg; setLang(lang); // 提示要說實話：跑太慢或顯示裝置中斷，不是「不支援」
   const loop = () => { ui(scrollT()); flat(); requestAnimationFrame(loop); }; loop();
@@ -544,7 +551,7 @@ async function start() {
     const target = fixedT ?? scrollT();
     if (jumpTo >= 0) { if (lastC) jump = { p: lastC.p, l: lastC.l, k: 0 }; Ts = target; jumpTo = -1; }
     Ts += (target - Ts) * (fixedT != null ? 1 : 1 - Math.exp(-dt * 4.2));
-    tI += dt * (scrollT() > 0.03 ? 5 : 1); // 一捲動就快轉
+    if (entered) tI += dt * (scrollT() > 0.03 ? 5 : 1); // 一捲動就快轉；還沒點「進入」就停在開場
     const sm = (x) => ease(Math.min(Math.max(x, 0), 1));
     const warmOn = sm((tI - 0.3) / 1.8), glassOn = sm((tI - 1.6) / 2.4);
     introK = 1 - Math.pow(1 - Math.min(tI / 6, 1), 3);
@@ -651,7 +658,7 @@ async function start() {
         if (scale <= HARD && ms > 50) { if (++slowN >= 3) { dead = true; fallback('too slow'); } } else slowN = 0;
       }
     }
-    if (!window.__ready) { window.__ready = true; document.body.classList.add('ready'); }
+    if (!window.__ready) { window.__ready = true; document.body.classList.add('ready'); loaded(); }
     if (qs.has('once')) { if (!OFF) (device ? device.queue.onSubmittedWorkDone() : Promise.resolve()).then(() => { window.__done = true; }); return; }
     if (!dead) requestAnimationFrame(frame);
   }
