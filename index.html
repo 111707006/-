@@ -324,29 +324,33 @@ body:not([data-stop="0"]) .rail .tip { opacity: 0; }
 #lightbox { position: fixed; z-index: 20; inset: 0; background: rgba(3,4,7,.92); display: grid; place-items: center; padding: 5vw; }
 #lightbox video { max-width: 100%; max-height: 82vh; background: #000; box-shadow: 0 0 120px rgba(160,200,255,.18); }
 #lightbox .x { position: absolute; top: 22px; right: 26px; background: none; border: 0; font-size: 30px; cursor: pointer; }
-/* 廣告投放：牆上的板子 */
-.wl.tile.ads { width: 600px; height: 1160px; }
-.wl.tile.ads::before { background: rgba(6,8,12,.74); border-color: rgba(255,190,122,.4); }
-.wl.tile.ads:hover::before, .wl.tile.ads:focus-visible::before { border-color: rgba(255,220,180,.95); }
-.ads .adc { position: absolute; inset: 76px 60px 70px; display: flex; flex-direction: column; white-space: normal; }
-.wl.ads small { font-size: 26px; letter-spacing: .32em; color: var(--warm); opacity: 1; }
-.wl.ads b { font-size: 132px; font-weight: 300; letter-spacing: .08em; line-height: 1.12; margin: 34px 0 28px; }
-.wl.ads em { font-size: 38px; line-height: 1.6; letter-spacing: .08em; margin: 0; opacity: .78; }
-.ads .rows { margin-top: auto; display: flex; flex-direction: column; gap: 14px; font-size: 32px; letter-spacing: .06em; color: rgba(242,240,236,.85); }
-.ads .rows span::before { content: "—"; margin-right: 18px; opacity: .5; }
-.wl.ads i { margin-top: 44px; font-size: 30px; letter-spacing: .24em; color: var(--warm); opacity: 1; }
-/* 廣告投放：點開的說明 */
-#ads { position: fixed; z-index: 20; inset: 0; background: rgba(3,4,7,.9); display: grid; place-items: center; padding: 24px 18px; overflow-y: auto; }
-#ads .adbox { position: relative; width: min(520px, 100%); padding: 44px 40px 38px; border: 1px solid var(--line); background: rgba(10,12,17,.92); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
-#ads .x { position: absolute; top: 12px; right: 16px; border: 0; background: none; cursor: pointer; font-size: 28px; line-height: 1; }
-#ads .tag { font-size: 11px; letter-spacing: .32em; color: var(--warm); }
-#ads h3 { font-family: "Cormorant Garamond", "Noto Serif TC", serif; font-weight: 300; font-size: 44px; letter-spacing: .06em; margin: 14px 0 12px; }
-#ads .lead { color: var(--dim); font-size: 15px; line-height: 1.8; }
-#ads dl { margin: 26px 0 30px; border-top: 1px solid var(--line); }
-#ads dl div { display: flex; justify-content: space-between; gap: 20px; padding: 14px 0; border-bottom: 1px solid var(--line); }
-#ads dt { font-size: 12px; letter-spacing: .24em; color: var(--dim); }
-#ads dd { margin: 0; font-size: 15px; letter-spacing: .04em; text-align: right; }
-#ads .btn { width: 100%; justify-content: space-between; }
+/* 廣告投放：牆上一塊小板子，只寫 AD，點了打開說明 */
+.wl.tile.ads { width: 440px; height: 440px; }
+.wl.tile.ads::before { background: rgba(6,8,12,.72); border-color: rgba(255,190,122,.55); }
+.wl.tile.ads:hover::before, .wl.tile.ads:focus-visible::before { border-color: rgba(255,225,190,1); background: rgba(20,16,12,.8); }
+.ads .adc { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; }
+.wl.ads b { font-family: "Cormorant Garamond", serif; font-size: 190px; font-weight: 300; letter-spacing: .08em; padding-left: .08em; line-height: 1; }
+.wl.ads small { font-size: 40px; letter-spacing: .3em; padding-left: .3em; color: var(--warm); opacity: 1; }
+.wl.ads small::before { display: none; }
+.wl.ads i { font-size: 44px; opacity: .8; }
+/* 廣告投放：點開是一整片，跟方案的玻璃板同一個樣子 */
+#ads { position: fixed; z-index: 20; inset: 0; background: rgba(3,4,7,.78); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); display: grid; place-items: center; padding: 20px 16px; overflow-y: auto; }
+#ads .adbox { --serif: "Cormorant Garamond", "Noto Serif TC", serif; position: relative; width: min(460px, 100%); min-height: min(740px, calc(100vh - 40px)); min-height: min(740px, calc(100dvh - 40px)); display: flex; flex-direction: column; padding: 52px 40px 36px;
+  background: linear-gradient(180deg, rgba(10,13,19,.86), rgba(8,10,15,.72)); backdrop-filter: blur(20px) saturate(.75); -webkit-backdrop-filter: blur(20px) saturate(.75); border: 1px solid rgba(242,240,236,.16); box-shadow: 0 40px 120px rgba(0,0,0,.6); animation: adrise .7s cubic-bezier(.2,.7,.2,1); }
+@keyframes adrise { from { opacity: 0; transform: translateY(46px); } to { opacity: 1; transform: none; } }
+#ads .x { position: absolute; top: 14px; right: 18px; border: 0; background: none; cursor: pointer; font-size: 30px; line-height: 1; }
+#ads .tag { display: flex; align-items: center; gap: 14px; font-size: 12px; letter-spacing: .34em; color: var(--warm); }
+#ads .tag::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+#ads h3 { font-family: var(--serif); font-weight: 300; font-size: 54px; letter-spacing: .06em; line-height: 1.1; margin: 30px 0 14px; }
+#ads .lead { font-family: var(--serif); font-weight: 300; font-size: 19px; line-height: 1.7; letter-spacing: .06em; color: rgba(242,240,236,.84); }
+#ads .price { margin-top: auto; padding-top: 34px; font-family: var(--serif); font-weight: 300; font-size: 42px; line-height: 1.15; letter-spacing: .03em; }
+#ads .price span { display: block; font-family: Jost, "Noto Sans TC", sans-serif; font-size: 12px; letter-spacing: .34em; color: var(--dim); margin-bottom: 10px; }
+#ads .price em { font-style: normal; }
+#ads ul { list-style: none; padding: 0; margin: 20px 0 30px; font-size: 15px; line-height: 2.1; letter-spacing: .05em; color: var(--dim); }
+#ads li::before { content: "—"; margin-right: 12px; opacity: .5; }
+#ads .go { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 17px 20px; border: 0; background: var(--ink); color: #0a0c10; cursor: pointer; font-size: 14px; letter-spacing: .26em; }
+#ads .go::after { content: "→"; letter-spacing: 0; font-size: 18px; }
+#ads .go:hover { background: #fff; }
 .note { position: fixed; z-index: 6; left: 50%; top: 22px; transform: translateX(-50%); font-size: 12px; letter-spacing: .18em; color: var(--dim); border: 1px solid var(--line); padding: 6px 14px; background: rgba(8,10,14,.5); display: none; }
 body.nogpu .note { display: block; }
 /* 載入畫面：場景畫出第一格（或換成靜態版本）之前蓋住全頁 */
@@ -384,7 +388,7 @@ body.entered #load { opacity: 0; visibility: hidden; }
 <!-- 場景表面上的標示：data-o 原點（公尺）、data-r 文字方向、data-s 每像素幾公尺 -->
 <div class="wl" data-o="-9.86,11.45,21.3" data-r="0,0,-1" data-s="0.0145" data-stops="2"><small>CLIENT WORK</small><b data-en="VIDEO FOR<br>EVERY NEED">各式影片需求，一次滿足</b><i data-en="">VIDEO FOR EVERY NEED</i></div>
 <!-- 廣告投放：貼在作品牆左邊那段空牆上的一塊板子，點了打開說明 -->
-<button class="wl tile ads" id="adsTile" data-o="-9.86,7.3,25.15" data-r="0,0,-1" data-s="0.005" data-stops="2" data-seq="7" aria-label="廣告投放" data-en-label="Ad placement"><span class="adc"><small>AD SERVICE</small><b data-en="AD<br>BOOST">廣告<br>投放</b><em data-en="Your videos, made<br>and then seen.">影片做好，<br>再幫你推出去。</em><span class="rows"><span data-en="Ad spend + 20% optimisation fee">廣告費 + 20% 優化服務費</span><span data-en="Starting fee NT$3,000">起始金 NT$3,000</span><span data-en="Plus 5% tax">另加 5% 稅金</span></span><i data-en="DETAILS →">了解更多 →</i></span></button>
+<button class="wl tile ads" id="adsTile" data-o="-9.86,6.3,24.75" data-r="0,0,-1" data-s="0.005" data-stops="2" data-seq="7" aria-label="廣告投放" data-en-label="Ad placement"><span class="adc"><b>AD</b><small data-en="AD PLACEMENT">廣告投放</small><i aria-hidden="true">→</i></span></button>
 <div class="wl play" id="play" data-o="0,0,0" data-r="0,0,-1" data-s="0.004"><video controls playsinline></video><div class="sw" hidden><button data-d="-1" aria-label="上一支" data-en-label="Previous video">‹</button><span></span><button data-d="1" aria-label="下一支" data-en-label="Next video">›</button></div><button class="x" aria-label="關閉" data-en-label="Close">×</button></div>
 <div class="wl" data-o="9.86,11.3,10.7" data-r="0,0,1" data-s="0.0165" data-stops="1"><small>GVS</small><b>BRAND FILM</b><i data-en="">形象影片</i></div>
 <div class="wl desk" data-o="0.5,0.86,3.02" data-r="1,0,0" data-s="0.0056" data-stops="0,4"><img src="assets/fg.png" alt="FG"><span></span>CUSTOMER SERVICE</div>
@@ -478,13 +482,10 @@ body.entered #load { opacity: 0; visibility: hidden; }
     <button class="x" aria-label="關閉" data-en-label="Close">×</button>
     <div class="tag">AD SERVICE</div>
     <h3 id="adsTitle" data-en="Ad Placement">廣告投放</h3>
-    <p class="lead" data-en="Your videos, made and then seen. We plan the campaign from industry data and give you a performance forecast before you start.">影片做好，再幫你推出去。依產業數據分析規劃投放，開始前提供投放成效預估。</p>
-    <dl>
-      <div><dt data-en="SERVICE FEE">服務費</dt><dd data-en="Ad spend + 20% optimisation fee">廣告費 + 20% 優化服務費</dd></div>
-      <div><dt data-en="STARTING FEE">起始金</dt><dd>NT$3,000</dd></div>
-      <div><dt data-en="TAX">稅金</dt><dd data-en="Plus 5% on the above">以上另加 5%</dd></div>
-    </dl>
-    <button class="btn solid go" data-plan="廣告投放" data-plan-en="Ad placement" data-en="Discuss Ad Placement">洽談廣告投放</button>
+    <p class="lead" data-en="Your videos, made<br>and then seen.">影片做好，<br>再幫你推出去。</p>
+    <div class="price"><span data-en="SERVICE FEE">服務費</span><em data-en="Ad spend + 20%">廣告費 + 20%</em></div>
+    <ul><li data-en="Starting fee NT$3,000">起始金 NT$3,000</li><li data-en="Plus 5% tax on the above">以上另加 5% 稅金</li><li data-en="Planned from industry data, with a performance forecast">產業數據分析，提供投放成效預估</li></ul>
+    <button class="go" data-plan="廣告投放" data-plan-en="Ad placement" data-en="Discuss Ad Placement">洽談廣告投放</button>
   </div>
 </div>
 <div id="track"></div>
