@@ -1,6 +1,6 @@
 // 背景音樂：在瀏覽器裡即時合成的環境音（沒有音樂檔，是這個網站自己產生的聲音，不涉及他人版權）。
 // 低沉的持續音 + 緩慢換和弦的柔和鋪底 + 偶爾幾顆帶回音的高音點綴，配合夜晚、霓虹的場景。
-// 預設關閉；按右上角的「音樂」才淡入。播放作品影片時自動淡出，影片停了再回來。偏好記在 localStorage。
+// 預設開啟；瀏覽器規定網頁要先被點一下才能出聲，所以訪客第一次點畫面（或按鍵）時才淡入。按右上角的「音樂」可以關掉，播放作品影片時自動淡出，影片停了再回來。關掉的選擇記在 localStorage，下次進來維持關閉。
 
 const VOL = 0.5;      // 整體音量（再經過 build 裡的混音，實際聽起來很小聲）
 const STEP = 10;      // 每幾秒換一個和弦
@@ -90,11 +90,16 @@ if (btn) {
   };
   btn.addEventListener('click', (e) => { e.stopPropagation(); set(!on); });
 
-  // 上次開著音樂的人：瀏覽器要先有一次點擊才准出聲，所以等第一次點畫面再接著播
+  // 預設開啟（除非訪客之前自己關掉）：開關先顯示成開著，等第一次點畫面或按鍵才真的出聲
   let saved = null; try { saved = localStorage.getItem('music'); } catch {}
-  if (saved === 'on') {
-    const resume = (e) => { if (e.target.closest('#musicBtn')) return; removeEventListener('pointerdown', resume, true); if (!on) set(true); };
-    addEventListener('pointerdown', resume, true);
+  if (saved !== 'off') {
+    on = true; btn.classList.add('on'); btn.setAttribute('aria-pressed', true);
+    const first = (e) => {
+      if (e.target.closest && e.target.closest('#musicBtn')) return; // 第一下就是按開關的人，交給開關處理（等於關掉）
+      ['pointerdown', 'keydown'].forEach((ev) => removeEventListener(ev, first, true));
+      if (on) { start(); fade(4); }
+    };
+    ['pointerdown', 'keydown'].forEach((ev) => addEventListener(ev, first, true));
   }
 
   // 作品影片在播的時候讓位
