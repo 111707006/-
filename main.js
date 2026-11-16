@@ -211,7 +211,7 @@ document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('clic
 // 玻璃上的按鈕：玻璃沉回去，帶著選的方案走到接待櫃檯那一站；那裡的「開始洽談」會把方案寫進信件主旨
 const talk = $('#talk'), MAIL = talk.getAttribute('href').split('?')[0];
 // 「開始洽談」打開兩個選項：寫信（#talk）或官方 LINE。官方 LINE 的加好友網址只寫在這裡一處；還沒填的時候 LINE 的選項不顯示
-const LINE_URL = '';
+const LINE_URL = 'https://line.me/R/ti/p/@541pigou';
 document.querySelectorAll('.line-link').forEach((a) => { if (LINE_URL) a.href = LINE_URL; else a.hidden = true; });
 const talkBtn = $('#talkBtn'), talkMenu = $('#talkMenu');
 const showTalk = (on) => { talkMenu.hidden = !on; talkBtn.setAttribute('aria-expanded', on); };
