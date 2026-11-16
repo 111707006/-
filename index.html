@@ -344,6 +344,8 @@ body.ready #load, body.nogpu #load { opacity: 0; visibility: hidden; }
   .rail { top: 42%; gap: 8px; }
   .rail .dot { height: 26px; }
   .panel p { font-size: 14.5px; }
+  .panel.contact { bottom: 22px; } .panel.contact .acts { margin-top: 16px; gap: 10px; } .panel.contact .btn { padding: 11px 20px; } .panel.contact .foot { margin-top: 14px; }
+  body:not(.nogpu) .panel .no.dup { display: none; } /* 聯絡那一站按鈕多，站名會疊到櫃檯上的大字；場景裡已經有 CUSTOMER SERVICE */
   .menu { gap: 6px; } .menu button { padding: 10px 10px; font-size: 13px; }
   .panel:has(.menu:not([hidden])) p { display: none; } /* 選單打開時收起說明，免得整段疊到影片牆上 */
 }
@@ -424,13 +426,13 @@ body.ready #load, body.nogpu #load { opacity: 0; visibility: hidden; }
   <div class="acts"><button class="btn" data-film="videos/GVS_Operations_30s_v2.mp4" data-en="How We Work">認識作業流程</button><button class="btn solid" data-view="plans" data-en="View Plans">看方案</button></div>
 </section>
 
-<section class="panel">
-  <div class="no">04 — CONTACT</div>
+<section class="panel contact">
+  <div class="no dup">04 — CONTACT</div>
   <h2 class="dup">CUSTOMER SERVICE</h2>
   <p data-en="Tell us what you want to get across: your brand, the audience you want to reach, and what you want the video to achieve.">聊聊你想說清楚的事：你的品牌、想觸及的受眾，以及希望影像達成的目標。</p>
   <p class="trust" data-en="Formal contract · Optional NDA · You decide whether the work goes public">正式合約 · NDA 可選 · 作品是否公開由你決定</p>
   <div class="menu" id="talkMenu" hidden><a id="talk" href="mailto:forgod20232023@gmail.com?subject=FG%20STUDIO%20Project%20Inquiry"><b>EMAIL</b><span data-en="Write to us">寫信洽談</span></a><a class="line-link" target="_blank" rel="noopener"><b>LINE</b><span data-en="Official LINE">官方 LINE</span></a></div>
-  <div class="acts"><button class="btn solid" id="talkBtn" aria-expanded="false" aria-controls="talkMenu" data-en="Start a Conversation">開始洽談</button><button class="btn" id="cardBtn" data-en="Business Card">名片</button></div>
+  <div class="acts"><button class="btn solid" id="talkBtn" aria-expanded="false" aria-controls="talkMenu" data-en="Start a Conversation">開始洽談</button><button class="btn" id="cardBtn" data-en="Business Card">名片</button><button class="btn" id="trialBtn" aria-controls="talkMenu" data-en="Apply for a Free GVS Trial">申請 GVS 免費試做</button></div>
   <p class="foot">© 2026 FG STUDIO · FOR GOD</p>
 </section>
 

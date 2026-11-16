@@ -215,9 +215,13 @@ const LINE_URL = '';
 document.querySelectorAll('.line-link').forEach((a) => { if (LINE_URL) a.href = LINE_URL; else a.hidden = true; });
 const talkBtn = $('#talkBtn'), talkMenu = $('#talkMenu');
 const showTalk = (on) => { talkMenu.hidden = !on; talkBtn.setAttribute('aria-expanded', on); };
-talkBtn.addEventListener('click', (e) => { e.stopPropagation(); showTalk(talkMenu.hidden); });
+// 「開始洽談」的信件主旨：一般洽談，或從方案頁帶過來的方案（planHref）；「申請 GVS 免費試做」開同一組選項，主旨換成免費試做
+let planHref = talk.getAttribute('href'), talkFor = '';
+const openTalk = (kind, href) => { const same = !talkMenu.hidden && talkFor === kind; talkFor = kind; talk.href = href; showTalk(!same); };
+talkBtn.addEventListener('click', (e) => { e.stopPropagation(); openTalk('talk', planHref); });
+$('#trialBtn').addEventListener('click', (e) => { e.stopPropagation(); openTalk('trial', `${MAIL}?subject=${encodeURIComponent(lang === 'en' ? 'FG STUDIO Inquiry: GVS free trial' : 'FG STUDIO 洽談：申請 GVS 免費試做')}`); });
 document.querySelectorAll('.go[data-plan]').forEach((b) => b.addEventListener('click', (e) => {
-  e.stopPropagation(); talk.href = `${MAIL}?subject=${encodeURIComponent(lang === 'en' ? 'FG STUDIO Inquiry: ' + (b.dataset.planEn || b.dataset.plan) : 'FG STUDIO 洽談：' + b.dataset.plan)}`; talk.dataset.plan = b.dataset.plan;
+  e.stopPropagation(); planHref = `${MAIL}?subject=${encodeURIComponent(lang === 'en' ? 'FG STUDIO Inquiry: ' + (b.dataset.planEn || b.dataset.plan) : 'FG STUDIO 洽談：' + b.dataset.plan)}`; talk.href = planHref; talk.dataset.plan = b.dataset.plan;
   closeView(); goto(4);
 }));
 selBtns.forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); setSel(+b.dataset.sel); }));
