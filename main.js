@@ -344,7 +344,7 @@ addEventListener('click', (e) => { if (!free(e)) return; const s = pick(e.client
 addEventListener('pointermove', (e) => { document.body.classList.toggle('pick', e.pointerType === 'mouse' && free(e) && pick(e.clientX, e.clientY) >= 0); });
 
 let introK = 1; // 開場鏡頭的進度：0 最遠，1 就定位
-// 進場：音樂開著的話，載入好先停在「START」，點了才進場、開場鏡頭才開始走（這一下也讓瀏覽器允許出聲）。
+// 進場：音樂開著的話，載入好先停在「ENTER」，點了才進場、開場鏡頭才開始走（這一下也讓瀏覽器允許出聲）。
 // 音樂被訪客關掉過、或網址帶 ?noenter，就跳過這一步直接進場
 let entered = false, musicOff = false;
 try { musicOff = localStorage.getItem('music') === 'off'; } catch {}

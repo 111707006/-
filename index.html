@@ -333,7 +333,7 @@ body.nogpu .note { display: block; }
 #load i { display: block; width: 160px; height: 1px; background: var(--line); position: relative; overflow: hidden; }
 #load i::after { content: ""; position: absolute; inset: 0; width: 40%; background: var(--warm); animation: load 1.4s infinite ease-in-out; }
 @keyframes load { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
-/* 進場：載入好了先停在「START」（這一下讓瀏覽器允許播放音樂），點了才進場；音樂被關掉的人直接進場 */
+/* 進場：載入好了先停在「ENTER」（這一下讓瀏覽器允許播放音樂），點了才進場；音樂被關掉的人直接進場 */
 #enter, #enterHint { display: none; }
 body.ready #load i, body.nogpu #load i { display: none; }
 body.ready #enter, body.nogpu #enter { display: block; margin-top: 6px; padding: 14px 34px; border: 1px solid var(--line); background: none; cursor: pointer; font-size: 13px; letter-spacing: .34em; padding-right: calc(34px - .34em); animation: breathe 2.4s ease-in-out infinite; transition: border-color .3s, background .3s; }
@@ -354,7 +354,7 @@ body.entered #load { opacity: 0; visibility: hidden; }
 </style>
 </head>
 <body data-stop="0">
-<div id="load"><img src="assets/fg.png" alt=""><b>FG STUDIO</b><i aria-hidden="true"></i><button id="enter">START</button><small id="enterHint">FOR GOD</small></div>
+<div id="load"><img src="assets/fg.png" alt=""><b>FG STUDIO</b><i aria-hidden="true"></i><button id="enter">ENTER</button><small id="enterHint">FOR GOD</small></div>
 <canvas id="stage" aria-hidden="true"></canvas>
 <div class="shade"></div>
 
