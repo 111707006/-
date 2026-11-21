@@ -261,7 +261,7 @@ html.lock, html.lock body { overflow: hidden; }
 .glass .price { margin-top: auto; font-family: var(--serif); font-weight: 300; font-size: 108px; line-height: 1.1; letter-spacing: .03em; }
 .glass .price em { display: inline; font: inherit; letter-spacing: inherit; opacity: 1; margin: 0; } /* 蓋掉 .wl em 的小字樣式 */
 .glass .price span { display: block; font-family: Jost, "Noto Sans TC", sans-serif; font-size: 28px; letter-spacing: .36em; color: var(--dim); margin-bottom: 20px; }
-.glass ul { list-style: none; padding: 0; margin: 42px 0 60px; font-size: 34px; line-height: 2; letter-spacing: .06em; color: var(--dim); }
+.glass ul { list-style: none; padding: 0; margin: 42px 0 48px; font-size: 34px; line-height: 2; letter-spacing: .06em; color: var(--dim); }
 .glass li::before { content: "—"; margin-right: 22px; opacity: .5; }
 .glass .go { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 36px 0; border: 0; border-top: 2px solid var(--line); background: none; cursor: pointer; font-size: 31px; letter-spacing: .3em; transition: border-color .3s; }
 .glass .go::after { content: "→"; letter-spacing: 0; font-size: 38px; transition: transform .35s cubic-bezier(.2,.7,.2,1); }
@@ -278,12 +278,10 @@ body[data-view] #vbar { display: block; }
 #vbar .tabs button { padding: 10px 14px; border: 1px solid var(--line); background: rgba(8,10,14,.6); cursor: pointer; font-size: 12px; letter-spacing: .16em; color: var(--dim); }
 #vbar .tabs button.on { color: #0a0c10; background: var(--ink); border-color: var(--ink); }
 @media (max-aspect-ratio: 23/20) { body[data-view="plans"] #vbar .tabs { display: flex; } }
-/* 方案說明書的按鈕：電腦在畫面下方中間，手機在左上（下面有頁籤） */
-#vbar .bookbtn { position: fixed; z-index: 6; left: 50%; bottom: 10px; transform: translateX(-50%); padding: 11px 22px; border: 1px solid rgba(255,190,122,.6); background: rgba(8,10,14,.6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); cursor: pointer; font-size: 12px; letter-spacing: .24em; white-space: nowrap; }
-#vbar .bookbtn::after { content: " ›"; color: var(--warm); }
-#vbar .bookbtn:hover { border-color: var(--warm); }
-body:not([data-view="plans"]) #vbar .bookbtn { display: none; }
-@media (max-aspect-ratio: 23/20) { #vbar .bookbtn { left: auto; right: calc(clamp(20px, 4vw, 56px) + 92px); bottom: auto; top: 74px; transform: none; padding: 8px 12px; font-size: 11.5px; letter-spacing: .14em; } } /* 手機：放在「關閉」左邊，避開玻璃板上的大標題 */
+/* 方案說明書的按鈕：每片玻璃板上，在「洽談」上面（尺寸跟玻璃上的字一樣是 1000px 寬的座標） */
+.glass .bookgo { display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 22px; padding: 30px 42px; border: 2px solid rgba(255,190,122,.55); background: rgba(8,10,14,.35); cursor: pointer; font-size: 30px; letter-spacing: .3em; color: var(--ink); transition: border-color .3s, background .3s; }
+.glass .bookgo::after { content: "›"; letter-spacing: 0; font-size: 40px; color: var(--warm); line-height: 1; }
+.glass .bookgo:hover { border-color: var(--warm); background: rgba(255,190,122,.08); }
 /* 方案說明書：米色紙的小冊子，翻頁是目前這頁沿左邊翻過去 */
 #book { position: fixed; z-index: 30; inset: 0; background: rgba(3,4,7,.86); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); display: grid; place-items: center; padding: 16px; touch-action: none; }
 #book .bk { position: relative; width: min(440px, 100%); display: flex; flex-direction: column; align-items: center; gap: 14px; }
@@ -453,6 +451,7 @@ body.entered #load { opacity: 0; visibility: hidden; }
   <p class="lead" data-en="Start with one video<br>to confirm the style and how we work together.">先從一支開始，<br>確認風格與合作方式。</p>
   <div class="price"><span data-en="FROM, PER VIDEO">每支起</span>NT$2,000</div>
   <ul><li data-en="You provide the footage and photos">你提供影片與照片素材</li><li data-en="Up to two rounds of revisions per video">每支作品最多修改兩次</li><li data-en="Brand trial: 1–3 videos, free of charge">品牌試做：1–3 支免費試做</li></ul>
+  <button class="bookgo" data-page="7" aria-controls="book" data-en="Plan Guide">方案說明書</button>
   <button class="go" data-plan="品牌試做（單支製作）" data-plan-en="Brand trial (Single Video)" data-en="Apply for a free trial">申請免費試做</button>
 </div>
 <div class="wl glass vip" id="g1">
@@ -460,6 +459,7 @@ body.entered #load { opacity: 0; visibility: hidden; }
   <p class="lead" data-en="15 short-form videos a month,<br>on an annual contract.">每月 15 支短影音，<br>年度簽約月費制。</p>
   <div class="price"><span data-en="MONTHLY · GVS EDITING">月費 · GVS EDITING</span>NT$25,450</div>
   <ul><li data-en="Advanced editing, subtitles, basic color and brand styling">進階剪輯、字幕、基本調色與品牌風格整理</li><li data-en="You supply video and photo assets; approx. NT$1,697 per video">你提供影片與照片素材，平均約 NT$1,697／支</li><li data-en="With Camera Support: NT$28,540. We help arrange a videographer; on-site shoots quoted separately">加攝影師媒合：NT$28,540，到場拍攝另議</li></ul>
+  <button class="bookgo" data-page="3" aria-controls="book" data-en="Plan Guide">方案說明書</button>
   <button class="go" data-plan="VIP" data-en="Discuss VIP">洽談 VIP</button>
 </div>
 <div class="wl glass" id="g2">
@@ -467,12 +467,12 @@ body.entered #load { opacity: 0; visibility: hidden; }
   <p class="lead" data-en="After the standard 15,<br>add each extra video at a special rate.">超過標準 15 支後，<br>每增加 1 支享優惠價。</p>
   <div class="price"><span data-en="PER EXTRA VIDEO">每加購 1 支</span>NT$450</div>
   <ul><li data-en="Up to 30 videos: as many as 15 additional">最多 30 支，額外最多可加購 15 支</li><li data-en="At 30 videos: approx. NT$1,073 per video on the Editing plan">滿 30 支：剪輯方案平均約 NT$1,073／支</li><li data-en="Camera Support plan: approx. NT$1,176 per video">攝影合作方案平均約 NT$1,176／支</li></ul>
+  <button class="bookgo" data-page="5" aria-controls="book" data-en="Plan Guide">方案說明書</button>
   <button class="go" data-plan="VIP DOUBLE" data-en="Discuss VIP DOUBLE">洽談 VIP DOUBLE</button>
 </div>
 <div id="vbar">
   <button class="x" data-en="CLOSE ×">關閉 ×</button>
   <div class="tabs"><button data-sel="0" data-en="Single">單支製作</button><button data-sel="1">VIP</button><button data-sel="2">VIP DOUBLE</button></div>
-  <button class="bookbtn" id="bookBtn" aria-controls="book" data-en="Plan Guide">方案說明書</button>
   <!-- 方案說明書：像電子書一樣一頁一頁翻（內容與翻頁都在 book.js） -->
   <div id="book" hidden>
     <div class="bk" role="dialog" aria-modal="true" aria-label="方案說明書" data-en-label="Plan guide">

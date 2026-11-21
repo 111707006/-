@@ -42,9 +42,10 @@ if (book) {
     book.classList.toggle('last', cur === PAGES.length - 1);
   };
   const go = (d) => { const n = Math.min(Math.max(cur + d, 0), PAGES.length - 1); if (n !== cur) { cur = n; show(); } };
-  const open = (e) => { e.stopPropagation(); cur = 0; render(); book.hidden = false; nextB.focus({ preventScroll: true }); };
+  // 每片玻璃板上的「方案說明書」：直接翻到那個方案的那一頁（data-page 從 1 算）
+  const open = (e) => { e.stopPropagation(); cur = Math.max(0, (+e.currentTarget.dataset.page || 1) - 1); render(); book.hidden = false; nextB.focus({ preventScroll: true }); };
   const close = () => { book.hidden = true; };
-  document.querySelector('#bookBtn').addEventListener('click', open);
+  document.querySelectorAll('.bookgo').forEach((b) => b.addEventListener('click', open));
   prevB.addEventListener('click', (e) => { e.stopPropagation(); go(-1); });
   nextB.addEventListener('click', (e) => { e.stopPropagation(); go(1); });
   book.querySelector('.x').addEventListener('click', (e) => { e.stopPropagation(); close(); });
