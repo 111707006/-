@@ -278,6 +278,58 @@ body[data-view] #vbar { display: block; }
 #vbar .tabs button { padding: 10px 14px; border: 1px solid var(--line); background: rgba(8,10,14,.6); cursor: pointer; font-size: 12px; letter-spacing: .16em; color: var(--dim); }
 #vbar .tabs button.on { color: #0a0c10; background: var(--ink); border-color: var(--ink); }
 @media (max-aspect-ratio: 23/20) { body[data-view="plans"] #vbar .tabs { display: flex; } }
+/* 方案說明書的按鈕：電腦在畫面下方中間，手機在左上（下面有頁籤） */
+#vbar .bookbtn { position: fixed; z-index: 6; left: 50%; bottom: 22px; transform: translateX(-50%); padding: 11px 22px; border: 1px solid rgba(255,190,122,.6); background: rgba(8,10,14,.6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); cursor: pointer; font-size: 12px; letter-spacing: .24em; white-space: nowrap; }
+#vbar .bookbtn::after { content: " ›"; color: var(--warm); }
+#vbar .bookbtn:hover { border-color: var(--warm); }
+body:not([data-view="plans"]) #vbar .bookbtn { display: none; }
+@media (max-aspect-ratio: 23/20) { #vbar .bookbtn { left: auto; right: calc(clamp(20px, 4vw, 56px) + 92px); bottom: auto; top: 74px; transform: none; padding: 10px 14px; letter-spacing: .16em; } } /* 手機：放在「關閉」左邊，避開玻璃板上的大標題 */
+/* 方案說明書：米色紙的小冊子，翻頁是目前這頁沿左邊翻過去 */
+#book { position: fixed; z-index: 30; inset: 0; background: rgba(3,4,7,.86); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); display: grid; place-items: center; padding: 16px; touch-action: none; }
+#book .bk { position: relative; width: min(440px, 100%); display: flex; flex-direction: column; align-items: center; gap: 14px; }
+#book .x { position: absolute; z-index: 40; top: 6px; right: 8px; border: 0; background: none; cursor: pointer; font-size: 28px; line-height: 1; padding: 6px 10px; color: #1d1f24; }
+#book .pages { position: relative; width: 100%; height: min(620px, calc(100vh - 150px)); height: min(620px, calc(100dvh - 150px)); perspective: 2200px; }
+#book .pg { position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; padding: 40px 32px 46px; background: #f3efe7; color: #1d1f24; border-radius: 3px 8px 8px 3px; transform-origin: left center; transition: transform .85s cubic-bezier(.3,.7,.2,1), opacity .85s ease-in; box-shadow: inset 14px 0 20px -14px rgba(0,0,0,.35), 0 30px 80px rgba(0,0,0,.55); backface-visibility: hidden; -webkit-backface-visibility: hidden; font: 400 14.5px/1.85 Jost, "Noto Sans TC", sans-serif; letter-spacing: .03em; }
+#book .pg.turned { transform: rotateY(-118deg); opacity: 0; pointer-events: none; }
+#book .pg .pn { position: absolute; right: 22px; bottom: 16px; font-size: 11px; letter-spacing: .2em; color: #8a857b; }
+#book h3 { display: flex; align-items: baseline; gap: 14px; font-family: "Cormorant Garamond", "Noto Serif TC", serif; font-weight: 500; font-size: 24px; letter-spacing: .06em; line-height: 1.3; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #d6cfc2; }
+#book h3 b { font-family: Jost, sans-serif; font-weight: 400; font-size: 12px; letter-spacing: .2em; color: #b0742e; }
+#book p { margin-bottom: 12px; color: #3b3d43; }
+#book strong { font-weight: 500; color: #1d1f24; }
+#book .small { font-size: 12.5px; color: #77736b; }
+#book .lbl { margin: 16px 0 4px; font-size: 12px; letter-spacing: .2em; color: #b0742e; }
+#book .big { margin: 6px 0 18px; font-family: "Cormorant Garamond", serif; font-size: 44px; font-weight: 400; line-height: 1.1; color: #111; }
+#book .big span { display: block; font-family: Jost, "Noto Sans TC", sans-serif; font-size: 11.5px; letter-spacing: .22em; color: #8a857b; margin-bottom: 6px; }
+#book .big em { font-style: normal; font-size: 18px; color: #555; }
+#book ul { list-style: none; padding: 0; margin: 0 0 12px; }
+#book ul li { display: flex; gap: 14px; padding: 9px 0; border-bottom: 1px solid #e2dccf; }
+#book ul li i { flex: 0 0 5.6em; font-style: normal; font-size: 12px; letter-spacing: .12em; color: #8a857b; padding-top: 2px; }
+#book ul.dash li { border: 0; padding: 3px 0; }
+#book ul.dash li::before { content: "—"; color: #b0742e; }
+#book ol { padding: 0; list-style: none; counter-reset: n; }
+#book ol li { counter-increment: n; padding: 10px 0 10px 34px; position: relative; border-bottom: 1px solid #e2dccf; color: #3b3d43; }
+#book ol li::before { content: counter(n, decimal-leading-zero); position: absolute; left: 0; top: 12px; font-size: 11px; letter-spacing: .1em; color: #b0742e; }
+#book ol li b { display: block; font-weight: 500; color: #1d1f24; }
+#book table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+#book th, #book td { padding: 9px 4px; border-bottom: 1px solid #e2dccf; text-align: left; }
+#book th { font-weight: 400; font-size: 11.5px; letter-spacing: .16em; color: #8a857b; }
+#book td + td, #book th + th { text-align: right; }
+#book .note { margin-top: 18px; padding: 14px 16px; background: #e9e3d7; border-left: 2px solid #b0742e; color: #3b3d43; }
+#book .note i { display: block; font-style: normal; font-size: 11.5px; letter-spacing: .2em; color: #b0742e; margin-bottom: 2px; }
+#book .cover { height: 100%; display: flex; flex-direction: column; justify-content: center; }
+#book .cover small { font-size: 11.5px; letter-spacing: .3em; color: #b0742e; }
+#book .cover h2 { font-family: "Cormorant Garamond", "Noto Serif TC", serif; font-weight: 400; font-size: 46px; line-height: 1.2; letter-spacing: .06em; margin: 22px 0 12px; color: #111; }
+#book .cover .sub { font-size: 16px; letter-spacing: .18em; color: #3b3d43; }
+#book .cover .slogan { margin-top: auto; padding-top: 22px; border-top: 1px solid #d6cfc2; font-size: 13px; color: #6a665e; }
+#book .cover .hint { margin-top: 16px; font-size: 11px; letter-spacing: .2em; color: #b0742e; }
+@media (max-width: 480px) { #book .pg { padding: 34px 24px 40px; font-size: 13.5px; line-height: 1.75; } #book h3 { font-size: 21px; margin-bottom: 12px; padding-bottom: 10px; } #book ol li { padding: 7px 0 7px 30px; } #book .big { font-size: 40px; } } /* 手機：每頁的字收一點，盡量一頁放得下 */
+#book .nav, #book .go { position: relative; z-index: 50; } /* 頁面的陰影不要蓋到下面的按鈕 */
+#book .nav { display: flex; align-items: center; gap: 22px; font-size: 12px; letter-spacing: .2em; color: var(--dim); }
+#book .nav button { width: 42px; height: 42px; border: 1px solid var(--line); border-radius: 50%; background: rgba(8,10,14,.6); cursor: pointer; font-size: 22px; line-height: 1; padding-bottom: 3px; }
+#book .nav button:disabled { opacity: .25; cursor: default; }
+#book .go { display: none; }
+#book.last .go { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 15px 20px; border: 0; background: var(--ink); color: #0a0c10; cursor: pointer; font-size: 13px; letter-spacing: .24em; }
+#book.last .go::after { content: "→"; letter-spacing: 0; font-size: 17px; }
 
 /* 每一站的說明 */
 .panel { position: fixed; z-index: 4; left: clamp(20px, 4vw, 56px); right: clamp(20px, 4vw, 56px); bottom: clamp(28px, 7vh, 72px); max-width: 560px; opacity: 0; transform: translateY(18px); transition: opacity .5s, transform .7s cubic-bezier(.2,.7,.2,1); pointer-events: none; }
@@ -405,7 +457,7 @@ body.entered #load { opacity: 0; visibility: hidden; }
 </div>
 <div class="wl glass vip" id="g1">
   <div class="tag">02　LONG-TERM<u data-en="FEATURED">主推</u></div><h3>VIP</h3>
-  <p class="lead" data-en="15 short-form videos a month.<br>Advanced editing, delivered in 1080p.">每月 15 支短影音，<br>進階剪輯、1080p 輸出。</p>
+  <p class="lead" data-en="15 short-form videos a month,<br>on an annual contract.">每月 15 支短影音，<br>年度簽約月費制。</p>
   <div class="price"><span data-en="MONTHLY · GVS EDITING">月費 · GVS EDITING</span>NT$25,450</div>
   <ul><li data-en="Advanced editing, subtitles, basic color and brand styling">進階剪輯、字幕、基本調色與品牌風格整理</li><li data-en="You supply video and photo assets; approx. NT$1,697 per video">你提供影片與照片素材，平均約 NT$1,697／支</li><li data-en="With Camera Support: NT$28,540. We help arrange a videographer; on-site shoots quoted separately">加攝影師媒合：NT$28,540，到場拍攝另議</li></ul>
   <button class="go" data-plan="VIP" data-en="Discuss VIP">洽談 VIP</button>
@@ -420,6 +472,16 @@ body.entered #load { opacity: 0; visibility: hidden; }
 <div id="vbar">
   <button class="x" data-en="CLOSE ×">關閉 ×</button>
   <div class="tabs"><button data-sel="0" data-en="Single">單支製作</button><button data-sel="1">VIP</button><button data-sel="2">VIP DOUBLE</button></div>
+  <button class="bookbtn" id="bookBtn" aria-controls="book" data-en="Plan Guide">方案說明書</button>
+  <!-- 方案說明書：像電子書一樣一頁一頁翻（內容與翻頁都在 book.js） -->
+  <div id="book" hidden>
+    <div class="bk" role="dialog" aria-modal="true" aria-label="方案說明書" data-en-label="Plan guide">
+      <button class="x" aria-label="關閉" data-en-label="Close">×</button>
+      <div class="pages"></div>
+      <div class="nav"><button class="prev" aria-label="上一頁" data-en-label="Previous page">‹</button><span class="no"></span><button class="next" aria-label="下一頁" data-en-label="Next page">›</button></div>
+      <button class="go" data-plan="GVS 合作方案" data-plan-en="GVS plans" data-en="Discuss GVS Plans">洽談 GVS 方案</button>
+    </div>
+  </div>
 </div>
 
 <header>
@@ -493,5 +555,6 @@ body.entered #load { opacity: 0; visibility: hidden; }
 <div id="track"></div>
 <script type="module" src="main.js"></script>
 <script type="module" src="ambient.js"></script>
+<script type="module" src="book.js"></script>
 </body>
 </html>
