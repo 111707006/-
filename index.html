@@ -322,9 +322,14 @@ body[data-view] #vbar { display: block; }
 #book .cover .hint { margin-top: 16px; font-size: 11px; letter-spacing: .2em; color: #b0742e; }
 @media (max-width: 480px) { #book .pg { padding: 34px 24px 40px; font-size: 13.5px; line-height: 1.75; } #book h3 { font-size: 21px; margin-bottom: 12px; padding-bottom: 10px; } #book ol li { padding: 7px 0 7px 30px; } #book .big { font-size: 40px; } } /* 手機：每頁的字收一點，盡量一頁放得下 */
 #book .nav, #book .go { position: relative; z-index: 50; } /* 頁面的陰影不要蓋到下面的按鈕 */
-#book .nav { display: flex; align-items: center; gap: 22px; font-size: 12px; letter-spacing: .2em; color: var(--dim); }
-#book .nav button { width: 42px; height: 42px; border: 1px solid var(--line); border-radius: 50%; background: rgba(8,10,14,.6); cursor: pointer; font-size: 22px; line-height: 1; padding-bottom: 3px; }
-#book .nav button:disabled { opacity: .25; cursor: default; }
+/* 翻頁按鈕：一打開就看得到，米色實心、下一頁會輕輕發光，讓人知道可以翻 */
+#book .nav { display: flex; align-items: center; gap: 20px; font-size: 13px; letter-spacing: .2em; color: var(--ink); }
+#book .nav button { display: grid; place-items: center; width: 52px; height: 52px; border: 0; border-radius: 50%; background: #f3efe7; color: #1d1f24; cursor: pointer; font-size: 28px; line-height: 1; padding-bottom: 4px; box-shadow: 0 6px 20px rgba(0,0,0,.45); transition: transform .2s, opacity .3s; }
+#book .nav button:active { transform: scale(.92); }
+#book .nav .next:not(:disabled) { background: var(--warm); animation: turnhint 1.8s ease-in-out infinite; }
+@keyframes turnhint { 0%, 100% { box-shadow: 0 6px 20px rgba(0,0,0,.45), 0 0 0 0 rgba(255,190,122,.55); } 50% { box-shadow: 0 6px 20px rgba(0,0,0,.45), 0 0 0 10px rgba(255,190,122,0); } }
+#book .nav button:disabled { opacity: .22; cursor: default; animation: none; }
+#book .nav .lbl2 { font-size: 11px; letter-spacing: .24em; color: var(--dim); }
 #book .go { display: none; }
 #book.last .go { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 15px 20px; border: 0; background: var(--ink); color: #0a0c10; cursor: pointer; font-size: 13px; letter-spacing: .24em; }
 #book.last .go::after { content: "→"; letter-spacing: 0; font-size: 17px; }
