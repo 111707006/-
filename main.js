@@ -592,8 +592,10 @@ async function start() {
     if (vK > 0) {
       const wide = aspect > 1.15, g = GL[vSel], y1 = GL[1].y1, cy = (g.y0 + y1) / 2;
       vX = ek(vX, wide ? 0 : g.x, 5);
-      const d = Math.max((y1 - g.y0) / 2 / tanH, (wide ? 5.5 : g.w) / 2 / (tanH * aspect)) / (wide ? 0.86 : 0.93), e = vK * vK * (3 - 2 * vK);
-      const fp = [vX, cy, g.z + d], tl = [vX, cy, g.z];
+      const d = Math.max((y1 - g.y0) / 2 / tanH, (wide ? 5.5 : g.w) / 2 / (tanH * aspect)) / (wide ? 0.86 : 0.76), e = vK * vK * (3 - 2 * vK);
+      // 直式螢幕：玻璃稍微往下放，上面留給「方案說明書」「關閉」，下面留給頁籤，都不壓到玻璃上的字
+      const cy2 = wide ? cy : cy + 0.07 * d * tanH;
+      const fp = [vX, cy2, g.z + d], tl = [vX, cy2, g.z];
       for (let j = 0; j < 3; j++) { c.p[j] += (fp[j] - c.p[j]) * e; c.l[j] += (tl[j] - c.l[j]) * e; }
     }
     if (jump) { // 直接飛：從按下去那一刻的鏡頭，直線移到新的位置
