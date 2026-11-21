@@ -260,6 +260,9 @@ html.lock, html.lock body { overflow: hidden; }
 .glass .lead { font-family: var(--serif); font-weight: 300; font-size: 41px; line-height: 1.65; letter-spacing: .06em; color: rgba(242,240,236,.84); }
 .glass .price { margin-top: auto; font-family: var(--serif); font-weight: 300; font-size: 108px; line-height: 1.1; letter-spacing: .03em; }
 .glass .price em { display: inline; font: inherit; letter-spacing: inherit; opacity: 1; margin: 0; } /* 蓋掉 .wl em 的小字樣式 */
+.glass .price .mkt { display: block; margin-bottom: 10px; font-family: Jost, "Noto Sans TC", sans-serif; font-size: 32px; letter-spacing: .1em; color: var(--dim); text-decoration: line-through; text-decoration-color: rgba(255,190,122,.8); text-decoration-thickness: 2px; }
+.glass .why { margin-top: 22px; font-size: 30px; line-height: 1.6; letter-spacing: .06em; color: var(--warm); }
+.glass .why + ul { margin-top: 26px; }
 .glass .price span { display: block; font-family: Jost, "Noto Sans TC", sans-serif; font-size: 28px; letter-spacing: .36em; color: var(--dim); margin-bottom: 20px; }
 .glass ul { list-style: none; padding: 0; margin: 42px 0 48px; font-size: 34px; line-height: 2; letter-spacing: .06em; color: var(--dim); }
 .glass li::before { content: "—"; margin-right: 22px; opacity: .5; }
@@ -298,6 +301,7 @@ body[data-view] #vbar { display: block; }
 #book .lbl { margin: 16px 0 4px; font-size: 12px; letter-spacing: .2em; color: #b0742e; }
 #book .big { margin: 6px 0 18px; font-family: "Cormorant Garamond", serif; font-size: 44px; font-weight: 400; line-height: 1.1; color: #111; }
 #book .big span { display: block; font-family: Jost, "Noto Sans TC", sans-serif; font-size: 11.5px; letter-spacing: .22em; color: #8a857b; margin-bottom: 6px; }
+#book .big .mkt { display: block; margin-bottom: 4px; font-family: Jost, "Noto Sans TC", sans-serif; font-size: 14px; letter-spacing: .08em; color: #8a857b; text-decoration: line-through; text-decoration-color: #b0742e; }
 #book .big em { font-style: normal; font-size: 18px; color: #555; }
 #book ul { list-style: none; padding: 0; margin: 0 0 12px; }
 #book ul li { display: flex; gap: 14px; padding: 9px 0; border-bottom: 1px solid #e2dccf; }
@@ -454,7 +458,8 @@ body.entered #load { opacity: 0; visibility: hidden; }
 <div class="wl glass" id="g0">
   <div class="tag">01　SINGLE</div><h3 data-en="Single Video">單支製作</h3>
   <p class="lead" data-en="Start with one video<br>to confirm the style and how we work together.">先從一支開始，<br>確認風格與合作方式。</p>
-  <div class="price"><span data-en="FROM, PER VIDEO">每支起</span>NT$2,000</div>
+  <div class="price"><span data-en="FROM, PER VIDEO">每支起</span><s class="mkt" data-en="Market rate NT$4,000–6,000">市場行情 NT$4,000–6,000</s>NT$2,000</div>
+  <p class="why" data-en="An international editing team working with AI keeps the cost down.">跨國剪輯團隊與 AI 協作，降低製作成本。</p>
   <ul><li data-en="You provide the footage and photos">你提供影片與照片素材</li><li data-en="Up to two rounds of revisions per video">每支作品最多修改兩次</li><li data-en="Brand trial: 1–3 videos, free of charge">品牌試做：1–3 支免費試做</li></ul>
   <button class="bookgo" data-page="7" aria-controls="book" data-en="Plan Guide">方案說明書</button>
   <button class="go" data-plan="品牌試做（單支製作）" data-plan-en="Brand trial (Single Video)" data-en="Apply for a free trial">申請免費試做</button>
