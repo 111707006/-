@@ -264,8 +264,8 @@ const i18n = [...document.querySelectorAll('[data-en]')].map((el) => ({ el, zh: 
 const i18nLabel = [...document.querySelectorAll('[data-en-label]')].map((el) => ({ el, zh: el.getAttribute('aria-label'), en: el.dataset.enLabel }));
 const NOTE = { // 改用平面版時的提示：一般（不支援）、跑太慢、裝置較輕、顯示裝置中斷；訪客自己選的不提示
   '': ['此裝置無法顯示 3D 場景，已改用平面版', 'This device can’t show the 3D scene, so you’re seeing the flat version.'],
-  'too slow': ['此裝置跑 3D 較吃力，已改用平面版（右上角可切換 2D／3D）', 'The 3D scene is heavy for this device, so you’re seeing the flat version (switch back at top right).'],
-  'lite': ['已為此裝置使用平面版，右上角可切換 3D', 'Showing the flat version on this device. Switch to 3D at top right.'],
+  'too slow': ['此裝置跑 3D 較吃力，已改用平面版（右上角選單可切回 3D）', 'The 3D scene is heavy for this device, so you’re seeing the flat version (switch back from the menu at top right).'],
+  'lite': ['已為此裝置使用平面版，右上角選單可切換 3D', 'Showing the flat version on this device. Switch to 3D from the menu at top right.'],
   'device lost': ['顯示裝置中斷，已改用平面版（重新整理可再試一次）', 'Graphics device lost, so you’re seeing the flat version (reload to try again).'],
 };
 const EN_TITLE = "FG STUDIO | Long-Term Video Partner for Brands, Free Trial Available", EN_DESC = "We get to know your brand with care, then tell your story well. Long-term video production for brands, companies and schools, with a free trial and ad placement.";
@@ -344,7 +344,7 @@ function pick(cx, cy) {
   if (cur === 3 && hit >= nOuter) return FILM;
   return stop === cur ? -1 : stop;
 }
-const free = (e) => !e.target.closest('button, a, input, video, .glass, #vbar, #lightbox, #ads');
+const free = (e) => !e.target.closest('button, a, input, video, .glass, #vbar, #lightbox, #ads, #menu');
 canvas.addEventListener('click', () => {}); // iOS Safari：元素自己沒有 click 監聽的話，點它不會送出 click，下面掛在 window 上的就收不到
 addEventListener('click', (e) => { if (FLAT || !free(e)) return; const s = pick(e.clientX, e.clientY); if (s === FILM) openFilm(OPS_FILM); else if (s >= 0) fly(s); });
 addEventListener('pointermove', (e) => { document.body.classList.toggle('pick', !FLAT && e.pointerType === 'mouse' && free(e) && pick(e.clientX, e.clientY) >= 0); });
@@ -401,6 +401,26 @@ function flatReason() {
   } catch {}
   return '';
 }
+
+// 右上角三條線的選單：設定（版本、聲音、語言）和網站各區的連結
+const menuBtn = $('#menuBtn'), menuEl = $('#menu');
+function setMenu(on) {
+  document.body.classList.toggle('navopen', on); document.documentElement.classList.toggle('menuopen', on);
+  menuBtn.setAttribute('aria-expanded', on); menuEl.setAttribute('aria-hidden', !on);
+  if (on) menuEl.querySelector('.mlinks button').focus({ preventScroll: true });
+}
+menuBtn.addEventListener('click', (e) => { e.stopPropagation(); setMenu(!document.body.classList.contains('navopen')); });
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && document.body.classList.contains('navopen')) setMenu(false); });
+menuEl.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const b = e.target.closest('[data-nav]'); if (!b) return;
+  const to = b.dataset.nav; setMenu(false);
+  if (to === 'ads') return $('#adsBtn').click();
+  if (to === 'guide') { const g = document.querySelector('#g0 .bookgo'), pg = g.dataset.page; g.dataset.page = 1; g.click(); g.dataset.page = pg; return; } // 用方案卡上的那顆打開，從封面開始翻
+  closeView(); closeTile();
+  if (to === 'plans') { if (FLAT) flatGo('plans'); else { goto(3); setTimeout(() => openView('plans'), 1300); } return; }
+  goto(+to);
+});
 
 // 右上角的 2D／3D 切換（跟中文／EN 同一個樣子）：記住選擇，重新載入
 function setViewBtn() { document.querySelectorAll('#viewSw [data-v]').forEach((b) => { const on = (b.dataset.v === 'flat') === FLAT; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); }); }

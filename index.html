@@ -208,8 +208,30 @@ header { position: fixed; z-index: 5; top: 0; left: 0; right: 0; display: flex; 
 header { gap: 18px; } header .brand { margin-right: auto; }
 /* 2D／3D 切換 */
 .lang button { white-space: nowrap; } .brand { white-space: nowrap; }
-@media (max-width: 480px) { header { gap: 10px; padding-left: 18px; padding-right: 16px; } .brand { font-size: 16px; letter-spacing: .1em; } .lang { gap: 1px; letter-spacing: .1em; } .lang button { padding: 8px 4px; } #musicBtn { min-width: 26px; padding: 8px 2px; } } /* 手機：品牌、2D／3D、音樂、中文／EN 放得下一行 */
-@media (max-width: 360px) { .panel.ops .acts { flex-wrap: wrap !important; } header { gap: 6px; padding-left: 14px; padding-right: 12px; } .brand { font-size: 14px; letter-spacing: .06em; } .lang { letter-spacing: .04em; font-size: 11px; } .lang button { padding: 8px 3px; } }
+/* 三條線的按鈕；打開時變成 × */
+#menuBtn { position: relative; width: 44px; height: 44px; margin-right: -8px; border: 0; background: none; cursor: pointer; }
+#menuBtn i { position: absolute; left: 11px; right: 11px; height: 1.5px; background: var(--ink); transition: transform .45s cubic-bezier(.6,0,.2,1), opacity .3s; }
+#menuBtn i:nth-child(1) { top: 15px; } #menuBtn i:nth-child(2) { top: 21px; } #menuBtn i:nth-child(3) { top: 27px; left: 19px; }
+body.navopen #menuBtn i:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+body.navopen #menuBtn i:nth-child(2) { opacity: 0; }
+body.navopen #menuBtn i:nth-child(3) { left: 11px; transform: translateY(-6px) rotate(-45deg); }
+body.navopen header { z-index: 41; }
+/* 選單本身：整頁的深色面板，項目依序滑進來 */
+#menu { position: fixed; z-index: 40; inset: 0; display: flex; flex-direction: column; padding: 96px clamp(24px, 7vw, 110px) 34px; overflow-y: auto; background: rgba(5,7,11,.95); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); opacity: 0; visibility: hidden; transition: opacity .45s, visibility 0s .45s; }
+body.navopen #menu { opacity: 1; visibility: visible; transition: opacity .45s; }
+html.menuopen, html.menuopen body { overflow: hidden; }
+.mset { display: flex; flex-wrap: wrap; gap: 14px 40px; padding-bottom: 22px; border-bottom: 1px solid var(--line); }
+.mrow { display: flex; align-items: center; gap: 14px; }
+.mrow small { font-size: 10.5px; letter-spacing: .26em; color: var(--dim); min-width: 4.5em; }
+.mlinks { list-style: none; padding: 0; margin: 18px 0 auto; }
+.mlinks li { border-bottom: 1px solid rgba(242,240,236,.08); opacity: 0; transform: translateY(18px); transition: opacity .5s, transform .7s cubic-bezier(.16,.84,.24,1); }
+body.navopen .mlinks li { opacity: 1; transform: none; transition-delay: calc(.08s + var(--i) * .045s); }
+.mlinks button { display: flex; align-items: baseline; gap: 22px; width: 100%; padding: clamp(11px, 1.8vh, 18px) 0; border: 0; background: none; cursor: pointer; text-align: left; font-family: "Cormorant Garamond", "Noto Serif TC", serif; font-weight: 300; font-size: clamp(24px, 3.6vw, 42px); letter-spacing: .06em; line-height: 1.15; transition: color .3s, padding-left .4s cubic-bezier(.2,.7,.2,1); }
+.mlinks b { font-family: Jost, sans-serif; font-weight: 400; font-size: 11px; letter-spacing: .2em; color: var(--warm); min-width: 2em; }
+.mlinks button:hover, .mlinks button:focus-visible { color: var(--warm); padding-left: 10px; outline: none; }
+body[data-stop="0"] .mlinks [data-nav="0"], body[data-stop="1"] .mlinks [data-nav="1"], body[data-stop="2"] .mlinks [data-nav="2"], body[data-stop="3"] .mlinks [data-nav="3"], body[data-stop="4"] .mlinks [data-nav="4"] { color: var(--warm); }
+.mfoot { margin-top: 28px; font-size: 11px; letter-spacing: .3em; color: var(--dim); }
+@media (max-width: 360px) { .panel.ops .acts { flex-wrap: wrap !important; } }
 #musicBtn { display: flex; align-items: center; gap: 8px; padding: 8px 6px; min-width: 32px; min-height: 32px; justify-content: center; border: 0; background: none; cursor: pointer; color: var(--dim); font-size: 12px; letter-spacing: .2em; }
 #musicBtn.on { color: var(--ink); }
 #musicBtn i { display: flex; align-items: flex-end; gap: 2px; height: 12px; }
@@ -490,10 +512,27 @@ body.entered #load { opacity: 0; visibility: hidden; }
 
 <header>
   <a class="brand" href="#" data-go="0">FG STUDIO</a>
-  <div class="lang" id="viewSw" role="group" aria-label="版本" data-en-label="Version"><button data-v="flat" aria-pressed="false">2D</button><span>/</span><button data-v="3d" class="on" aria-pressed="true">3D</button></div>
-  <button id="musicBtn" aria-pressed="false" aria-label="背景音樂" data-en-label="Background music"><i aria-hidden="true"><b></b><b></b><b></b></i></button>
-  <div class="lang" role="group" aria-label="Language"><button data-lang="zh" class="on" aria-pressed="true">中文</button><span>/</span><button data-lang="en" aria-pressed="false">EN</button></div>
+  <button id="menuBtn" aria-expanded="false" aria-controls="menu" aria-label="選單" data-en-label="Menu"><i></i><i></i><i></i></button>
 </header>
+<!-- 右上角三條線的選單：上面是設定（版本、聲音、語言），下面是網站的各區，點了就過去。3D 版和平面版共用 -->
+<nav id="menu" aria-label="網站選單" data-en-label="Site menu" aria-hidden="true">
+  <div class="mset">
+    <div class="mrow"><small data-en="VERSION">版本</small><div class="lang" id="viewSw" role="group" aria-label="版本" data-en-label="Version"><button data-v="flat" aria-pressed="false">2D</button><span>/</span><button data-v="3d" class="on" aria-pressed="true">3D</button></div></div>
+    <div class="mrow"><small data-en="SOUND">聲音</small><button id="musicBtn" aria-pressed="false" aria-label="背景音樂" data-en-label="Background music"><i aria-hidden="true"><b></b><b></b><b></b></i></button></div>
+    <div class="mrow"><small data-en="LANGUAGE">語言</small><div class="lang" role="group" aria-label="Language"><button data-lang="zh" class="on" aria-pressed="true">中文</button><span>/</span><button data-lang="en" aria-pressed="false">EN</button></div></div>
+  </div>
+  <ol class="mlinks">
+    <li style="--i:0"><button data-nav="0"><b>00</b><span data-en="Home">首頁</span></button></li>
+    <li style="--i:1"><button data-nav="1"><b>01</b><span data-en="GVS Brand Film">GVS 形象影片</span></button></li>
+    <li style="--i:2"><button data-nav="2"><b>02</b><span data-en="Video for Every Need">各式影片需求</span></button></li>
+    <li style="--i:3"><button data-nav="3"><b>03</b><span data-en="GVS Operations">GVS OPERATIONS</span></button></li>
+    <li style="--i:4"><button data-nav="plans"><b>04</b><span data-en="Plans">合作方案</span></button></li>
+    <li style="--i:5"><button data-nav="guide" class="bookgo-nav"><b>05</b><span data-en="Plan Guide">方案說明書</span></button></li>
+    <li style="--i:6"><button data-nav="ads"><b>06</b><span data-en="Ad Placement">廣告投放</span></button></li>
+    <li style="--i:7"><button data-nav="4"><b>07</b><span data-en="Contact">聯絡我們</span></button></li>
+  </ol>
+  <p class="mfoot">FG STUDIO · FOR GOD</p>
+</nav>
 <div class="note"></div>
 
 <section class="panel hero" data-k="0">
