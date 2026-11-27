@@ -1,0 +1,154 @@
+/* 平面版（body.flat）。版面與捲動效果；內容都是 index.html 那一份，flat.js 把它們搬進這裡的區塊。
+   捲動效果：進入畫面浮現（所有瀏覽器），視差／字帶／進度條（支援 CSS 捲動動畫的瀏覽器）。減少動態的設定一律關掉。 */
+
+body.flat { overflow-x: hidden; background: var(--bg); }
+body.flat #stage, body.flat #track, body.flat .shade, body.flat #vbar, body.flat #pickBtn, body.flat #pickMenu, body.flat #adsBtn { display: none !important; }
+body.flat .wl { display: none !important; }
+body.flat header { transition: background .4s; }
+body.flat header.scrolled { background: linear-gradient(180deg, rgba(5,7,11,.92), rgba(5,7,11,.55) 70%, rgba(5,7,11,0)); }
+#flat { position: relative; z-index: 2; }
+
+/* 原本固定在畫面底部的說明，在平面版變成一般的段落 */
+body.flat .panel { position: relative; left: auto; right: auto; bottom: auto; z-index: auto; max-width: 600px; opacity: 1; transform: none; transition: none; pointer-events: auto !important; }
+body.flat .panel * { pointer-events: auto !important; }
+body.flat .panel h2.dup, body.flat .panel .no.dup, body.flat .panel.ops h2 { display: block !important; }
+body.flat .panel h2 { font-size: clamp(32px, 4.6vw, 58px); margin: 12px 0 18px; }
+body.flat .panel p { font-size: 16px; line-height: 1.85; }
+body.flat .panel:has(.menu:not([hidden])) p { display: block; }
+body.flat .panel.contact { bottom: auto; }
+
+.f-sec { position: relative; padding: clamp(96px, 15vh, 170px) clamp(20px, 6vw, 96px); }
+.f-split { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); gap: clamp(36px, 6vw, 96px); align-items: center; }
+.f-ops .f-text { order: 0; }
+.f-media { position: relative; overflow: hidden; aspect-ratio: 3 / 2; background: #0a0d12; }
+.f-media img, .f-media video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.f-frame img { transform: scale(1.14); }
+
+/* 首頁：整個畫面的建築，標題一行一行浮上來 */
+.f-hero { position: relative; min-height: 100vh; min-height: 100svh; display: flex; align-items: flex-end; padding: 0 clamp(20px, 6vw, 96px) clamp(80px, 13vh, 140px); overflow: hidden; }
+.f-bg { position: absolute; inset: 0; overflow: hidden; }
+.f-bg img { width: 100%; height: 100%; object-fit: cover; transform-origin: 50% 40%; }
+.f-bg::after { content: ""; position: absolute; inset: 0; background: radial-gradient(120% 90% at 0% 100%, rgba(4,5,8,.9), rgba(4,5,8,.45) 50%, rgba(4,5,8,.1) 80%), linear-gradient(180deg, rgba(5,7,11,.55), transparent 22%, transparent 60%, var(--bg)); }
+.f-hero .f-text { position: relative; }
+body.flat .f-hero .hero h1 { font-size: clamp(46px, 8.4vw, 124px); line-height: .98; letter-spacing: .04em; }
+.f-line { display: block; overflow: hidden; padding-bottom: .06em; }
+.f-line > span { display: block; transform: translateY(105%); transition: transform 1.3s cubic-bezier(.16,.84,.24,1) calc(.25s + var(--i) * .14s); }
+body.entered .f-line > span { transform: none; }
+body.flat .f-hero .hero .sub, body.flat .f-hero .hero .acts { opacity: 0; transform: translateY(16px); transition: opacity 1s .9s, transform 1.1s cubic-bezier(.16,.84,.24,1) .9s; }
+body.flat.entered .f-hero .hero .sub, body.flat.entered .f-hero .hero .acts { opacity: 1; transform: none; }
+.f-cue { position: absolute; left: 50%; bottom: 26px; width: 1px; height: 56px; background: var(--line); overflow: hidden; }
+.f-cue i { position: absolute; left: 0; top: 0; width: 1px; height: 40%; background: var(--warm); animation: cue 2.2s cubic-bezier(.6,0,.3,1) infinite; }
+@keyframes cue { from { transform: translateY(-100%); } to { transform: translateY(260%); } }
+
+/* 捲動字帶 */
+.f-marquee { overflow: hidden; white-space: nowrap; padding: 26px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.f-marquee span { display: inline-block; font-family: "Cormorant Garamond", serif; font-weight: 300; font-size: clamp(34px, 6vw, 84px); letter-spacing: .06em; color: rgba(242,240,236,.16); }
+
+/* 形象影片 */
+.f-film { aspect-ratio: 16 / 9; cursor: pointer; }
+.f-play { position: absolute; inset: 0; display: grid; place-items: center; border: 0; background: linear-gradient(0deg, rgba(5,7,11,.5), transparent 55%); cursor: pointer; }
+.f-play span { width: 74px; height: 74px; border-radius: 50%; border: 1px solid rgba(242,240,236,.7); background: rgba(8,10,14,.45); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); position: relative; transition: transform .4s cubic-bezier(.2,.7,.2,1), border-color .3s; }
+.f-play span::after { content: ""; position: absolute; left: 30px; top: 24px; border-left: 18px solid var(--ink); border-top: 13px solid transparent; border-bottom: 13px solid transparent; }
+.f-play:hover span { transform: scale(1.08); border-color: var(--warm); }
+
+/* 作品格 */
+.f-work .f-text { margin-bottom: clamp(40px, 7vh, 72px); }
+.f-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(10px, 1.4vw, 18px); }
+.f-card { position: relative; aspect-ratio: 4 / 5; padding: 0; border: 0; background: #0a0d12; cursor: pointer; overflow: hidden; text-align: left; color: var(--ink); }
+.f-m { position: absolute; inset: 0; }
+.f-m img, .f-m video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 1.2s cubic-bezier(.2,.7,.2,1), opacity .5s; }
+.f-m video { opacity: 0; }
+.f-card.live .f-m video { opacity: 1; }
+.f-card:hover .f-m img, .f-card:hover .f-m video { transform: scale(1.05); }
+.f-card::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(3,4,7,.88), rgba(3,4,7,.1) 55%, transparent); pointer-events: none; }
+.f-cap { position: absolute; z-index: 1; left: clamp(14px, 1.6vw, 24px); right: 14px; bottom: clamp(14px, 1.6vw, 22px); display: flex; flex-direction: column; gap: 4px; }
+.f-cap small { font-size: 10.5px; letter-spacing: .24em; color: var(--warm); }
+.f-cap b { font-weight: 400; font-size: clamp(16px, 1.8vw, 24px); letter-spacing: .08em; }
+.f-cap i { font-style: normal; font-size: 10.5px; letter-spacing: .2em; color: var(--dim); }
+.f-cap em { align-self: flex-start; margin-top: 6px; padding: 3px 8px; border: 1px solid var(--line); font-style: normal; font-size: 10.5px; letter-spacing: .14em; color: var(--dim); }
+.f-pi { position: absolute; z-index: 1; top: 14px; right: 14px; width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(242,240,236,.45); opacity: .85; transition: border-color .3s, background .3s; }
+.f-pi::after { content: ""; position: absolute; left: 13px; top: 10px; border-left: 10px solid var(--ink); border-top: 7px solid transparent; border-bottom: 7px solid transparent; }
+.f-card:hover .f-pi { border-color: var(--warm); background: rgba(255,190,122,.14); }
+
+/* 廣告投放那一條 */
+.f-ad { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 6px 28px; width: 100%; margin-top: clamp(14px, 2vw, 22px); padding: clamp(22px, 3vw, 34px) clamp(20px, 3vw, 38px); border: 1px solid rgba(255,190,122,.45); background: linear-gradient(90deg, rgba(255,190,122,.07), rgba(8,10,14,.4)); cursor: pointer; text-align: left; transition: border-color .3s, background .3s; }
+.f-ad small { grid-row: 1 / 3; font-size: 11px; letter-spacing: .3em; color: var(--warm); }
+.f-ad b { font-family: "Cormorant Garamond", "Noto Serif TC", serif; font-weight: 300; font-size: clamp(24px, 3vw, 36px); letter-spacing: .06em; }
+.f-ad span { grid-column: 2; font-size: 14px; color: var(--dim); letter-spacing: .06em; }
+.f-ad i { grid-row: 1 / 3; grid-column: 3; font-style: normal; font-size: 26px; color: var(--warm); transition: transform .35s cubic-bezier(.2,.7,.2,1); }
+.f-ad:hover { border-color: var(--warm); background: linear-gradient(90deg, rgba(255,190,122,.13), rgba(8,10,14,.4)); }
+.f-ad:hover i { transform: translateX(8px); }
+
+/* 方案：玻璃板照原本的設計，縮放成卡片大小（flat.js 設 zoom） */
+.f-head { max-width: 640px; margin-bottom: clamp(40px, 7vh, 70px); }
+.f-head .no { font-size: 14px; letter-spacing: .22em; color: var(--dim); }
+.f-head h2 { font-weight: 300; font-size: clamp(32px, 4.6vw, 58px); letter-spacing: .08em; line-height: 1.15; margin: 12px 0 18px; }
+.f-head p { color: var(--dim); font-size: 16px; line-height: 1.85; }
+.f-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(14px, 1.8vw, 26px); align-items: start; }
+.f-plan { min-width: 0; }
+body.flat .f-plan .wl.glass { display: flex !important; position: relative; left: auto; top: auto; width: 880px; height: auto !important; min-height: 1500px; transform: none !important; opacity: 1 !important; pointer-events: auto; white-space: normal; will-change: auto;
+  background: linear-gradient(180deg, #11141b, #090b10); outline: 2px solid rgba(242,240,236,.12); backdrop-filter: none; -webkit-backdrop-filter: none; }
+body.flat .f-plan .glass .price { padding-top: 80px; }
+body.flat .f-plan .wl.glass.vip { outline-color: rgba(255,190,122,.45); }
+
+/* 聯絡：接待櫃檯的照片當背景 */
+.f-contact { min-height: 92vh; display: flex; align-items: flex-end; overflow: hidden; }
+.f-contact .f-bg::after { background: linear-gradient(180deg, var(--bg), rgba(5,7,11,.55) 30%, rgba(5,7,11,.7) 70%, rgba(5,7,11,.95)); }
+.f-contact .f-text { position: relative; }
+
+/* 頂端的捲動進度 */
+.f-progress { position: fixed; z-index: 7; left: 0; top: 0; height: 2px; width: 100%; background: var(--warm); transform-origin: 0 50%; transform: scaleX(0); }
+
+/* 提示（例如「此裝置改用平面版」） */
+body.flat .note { display: block; top: 76px; opacity: 0; pointer-events: none; transition: opacity .6s; max-width: calc(100vw - 32px); white-space: normal; text-align: center; }
+body.flat .note.show { opacity: 1; }
+
+/* 進入畫面就浮現 */
+body.flat [data-fx] { opacity: 0; transform: translateY(34px); filter: blur(6px); transition: opacity 1s cubic-bezier(.2,.7,.2,1), transform 1.2s cubic-bezier(.16,.84,.24,1), filter 1s; transition-delay: calc(var(--i, 0) * 90ms); }
+body.flat [data-fx].in { opacity: 1; transform: none; filter: none; }
+
+/* 平板與手機 */
+@media (max-width: 900px) {
+  .f-split { grid-template-columns: 1fr; }
+  .f-ops .f-media { order: -1; }
+  .f-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .f-cards { grid-template-columns: 1fr; gap: 18px; }
+  /* 手機：方案卡片一張一張疊上來 */
+  .f-plan { position: sticky; top: 70px; }
+}
+@media (max-width: 640px) {
+  .f-sec { padding-top: 84px; padding-bottom: 84px; }
+  .f-ad { grid-template-columns: 1fr auto; }
+  .f-ad small { grid-row: auto; }
+  .f-ad span { grid-column: 1; }
+  .f-ad i { grid-row: 1 / 4; grid-column: 2; }
+  body.flat .rail { display: none; }
+  body.flat .panel p { font-size: 15px; }
+}
+
+/* 支援 CSS 捲動動畫的瀏覽器：視差、字帶、進度條、首頁照片放大變暗 */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .f-progress { animation: f-prog linear both; animation-timeline: scroll(root); }
+    @keyframes f-prog { to { transform: scaleX(1); } }
+    .f-hero .f-bg img { animation: f-heroimg linear both; animation-timeline: view(); animation-range: exit 0% exit 100%; }
+    @keyframes f-heroimg { to { transform: scale(1.18) translateY(6%); filter: brightness(.45); } }
+    .f-hero .f-text { animation: f-herotext linear both; animation-timeline: view(); animation-range: exit 0% exit 70%; }
+    @keyframes f-herotext { to { opacity: 0; transform: translateY(-60px); } }
+    .f-marquee span { animation: f-marq linear both; animation-timeline: view(); }
+    @keyframes f-marq { from { transform: translateX(0); } to { transform: translateX(-28%); } }
+    .f-frame img, .f-contact .f-bg img { animation: f-para linear both; animation-timeline: view(); }
+    @keyframes f-para { from { transform: scale(1.14) translateY(-7%); } to { transform: scale(1.14) translateY(7%); } }
+    @media (min-width: 901px) {
+      .f-grid .f-card:nth-child(3n+2) { animation: f-col linear both; animation-timeline: view(); animation-range: cover; }
+      @keyframes f-col { from { translate: 0 70px; } to { translate: 0 -40px; } }
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.flat [data-fx] { opacity: 1; transform: none; filter: none; transition: none; }
+  .f-line > span { transform: none; transition: none; }
+  body.flat .f-hero .hero .sub, body.flat .f-hero .hero .acts { opacity: 1; transform: none; transition: none; }
+  .f-cue i { animation: none; }
+}
