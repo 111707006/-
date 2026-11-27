@@ -265,6 +265,7 @@ const i18nLabel = [...document.querySelectorAll('[data-en-label]')].map((el) => 
 const NOTE = { // 改用平面版時的提示：一般（不支援）、跑太慢、裝置較輕、顯示裝置中斷；訪客自己選的不提示
   '': ['此裝置無法顯示 3D 場景，已改用平面版', 'This device can’t show the 3D scene, so you’re seeing the flat version.'],
   'too slow': ['此裝置跑 3D 較吃力，已改用平面版（右上角選單可切回 3D）', 'The 3D scene is heavy for this device, so you’re seeing the flat version (switch back from the menu at top right).'],
+  'phone': ['手機預設為平面版，右上角選單可切換 3D', 'Phones open in the flat version. Switch to 3D from the menu at top right.'],
   'lite': ['已為此裝置使用平面版，右上角選單可切換 3D', 'Showing the flat version on this device. Switch to 3D from the menu at top right.'],
   'device lost': ['顯示裝置中斷，已改用平面版（重新整理可再試一次）', 'Graphics device lost, so you’re seeing the flat version (reload to try again).'],
 };
@@ -390,6 +391,9 @@ function flatReason() {
   if (pref === '3d') return '';
   if (pref === 'flat') return 'chosen';
   if (auto) return 'too slow';
+  // 手機預設平面版（平板與電腦預設 3D）；在選單裡選了 3D 的照選擇
+  const ua = navigator.userAgent, phone = !/iPad|Tablet/i.test(ua) && (navigator.userAgentData?.mobile ?? /iPhone|iPod|Android.+Mobile|Windows Phone/i.test(ua));
+  if (phone || (matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600)) return 'phone';
   if (navigator.connection && navigator.connection.saveData) return 'lite';
   if (navigator.deviceMemory && navigator.deviceMemory <= 2) return 'lite';
   if (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2) return 'lite';
