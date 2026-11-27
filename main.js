@@ -3,10 +3,12 @@
 // 沒有 WebGPU 的瀏覽器改走 WebGL2（gl.js、shader-gl.js），畫面相同。
 import { WGSL, MAX_BOXES, MAX_LINES } from './shader.js';
 import { initGL } from './gl.js';
+import { buildFlat, flatGo, flatStep, flatPlay } from './flat.js';
 
 const $ = (s) => document.querySelector(s);
 const canvas = $('#stage');
 const qs = new URLSearchParams(location.search);
+let FLAT = false; // 平面版（flat.js）：跑不動 3D 或訪客自己選的
 const MEDIA = 'media-library/';
 
 // ---------- 場景：方塊（min, max, 材質）----------
@@ -171,6 +173,7 @@ swEl.addEventListener('click', (e) => {
 });
 playV.addEventListener('ended', () => { if (focus >= 0 && fVid < tiles[fTile].ids.length - 1) { loadVid(fVid + 1); playV.play().catch(() => {}); } });
 function openTile(k) {
+  if (FLAT) { flatPlay(k); return; }
   focus = fTile = k; loadVid(0);
   if (!qs.has('focus')) playV.play().catch(() => {});
   document.documentElement.classList.add('lock');
@@ -191,6 +194,7 @@ const riseK = (k) => Math.min(Math.max(riseP * 1.5 - Math.abs(k - 1) * 0.5, 0), 
 const selBtns = [...document.querySelectorAll('#vbar [data-sel]')];
 const setSel = (k) => { vSel = k; selBtns.forEach((b) => b.classList.toggle('on', +b.dataset.sel === k)); };
 function openView(v) {
+  if (FLAT) { flatGo('plans'); return; }
   closeTile(); view = v; document.body.dataset.view = v; document.documentElement.classList.add('lock');
 }
 function closeView() {
@@ -198,14 +202,6 @@ function closeView() {
   view = ''; delete document.body.dataset.view; document.documentElement.classList.remove('lock');
 }
 // 靜態版本沒有場景：玻璃板的內容直接攤平排在畫面中央
-function flat() {
-  const show = view === 'plans' ? (innerWidth > innerHeight * 1.15 ? [0, 1, 2] : [vSel]) : [];
-  glassEls.forEach((el, k) => {
-    const j = show.indexOf(k); el.style.opacity = j < 0 ? 0 : 1; el.classList.toggle('hot', j >= 0); if (j < 0) return;
-    const h = parseFloat(el.style.height), cw = innerWidth * 0.94 / show.length, sc = Math.min((cw - 16) / 1000, innerHeight * 0.76 / h);
-    el.style.transform = `translate(${innerWidth * 0.03 + cw * j + (cw - 1000 * sc) / 2}px, ${(innerHeight - h * sc) / 2 + 12}px) scale(${sc})`;
-  });
-}
 setSel(1);
 document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); openView(b.dataset.view); }));
 // 玻璃上的按鈕：玻璃沉回去，帶著選的方案走到接待櫃檯那一站；那裡的「開始洽談」會把方案寫進信件主旨
@@ -240,15 +236,15 @@ const SEG = 1.25; // 每一站的捲動長度（倍螢幕高）
 const setHeight = () => { $('#track').style.height = `${(STOPS * SEG + 1) * 100}vh`; };
 setHeight();
 const scrollT = () => Math.min(Math.max(scrollY / (SEG * vh()), 0), STOPS);
-const goto = (s) => scrollTo({ top: s * SEG * vh() + 1, behavior: 'smooth' });
+const goto = (s) => (FLAT ? flatGo(s) : scrollTo({ top: s * SEG * vh() + 1, behavior: 'smooth' }));
 // 直接飛過去：捲動位置立刻換到那一站，鏡頭從現在的位置直線移過去（frame() 裡），不沿路徑經過中間的站
 let jumpTo = -1, jump = null, lastC = null;
 const fly = (s) => { jumpTo = s; scrollTo({ top: s * SEG * vh() + 1, behavior: 'instant' }); };
 dots.forEach((b, k) => b.addEventListener('click', () => goto(k)));
-document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => { closeView(); goto(+b.dataset.go); }));
+document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => { closeView(); goto(FLAT && b.dataset.flatGo ? b.dataset.flatGo : +b.dataset.go); }));
 // 上一站／下一站：一路往下滑不一定剛好停在站點上（說明要靠近站點才出現），按一下就走到下一站
 const prevB = $('.rail .prev'), nextB = $('.rail .next');
-const step = (d) => { closeView(); goto(Math.min(Math.max(Math.round(scrollT()) + d, 0), STOPS)); };
+const step = (d) => { if (FLAT) return flatStep(d); closeView(); goto(Math.min(Math.max(Math.round(scrollT()) + d, 0), STOPS)); };
 prevB.addEventListener('click', (e) => { e.stopPropagation(); step(-1); });
 nextB.addEventListener('click', (e) => { e.stopPropagation(); step(1); });
 
@@ -266,10 +262,11 @@ pickMenu.addEventListener('click', (e) => {
 let lang = 'zh', noteMsg = '';
 const i18n = [...document.querySelectorAll('[data-en]')].map((el) => ({ el, zh: el.innerHTML, en: el.dataset.en }));
 const i18nLabel = [...document.querySelectorAll('[data-en-label]')].map((el) => ({ el, zh: el.getAttribute('aria-label'), en: el.dataset.enLabel }));
-const NOTE = { // 靜態版本的提示：一般（不支援）、跑太慢、顯示裝置中斷
-  '': ['此裝置無法顯示 3D 場景，顯示靜態版本', 'This device can’t show the 3D scene. Showing the static version.'],
-  'too slow': ['此裝置跑 3D 場景太吃力，顯示靜態版本', 'The 3D scene is too heavy for this device. Showing the static version.'],
-  'device lost': ['顯示裝置中斷，顯示靜態版本（重新整理可再試一次）', 'Graphics device lost. Showing the static version (reload to try again).'],
+const NOTE = { // 改用平面版時的提示：一般（不支援）、跑太慢、裝置較輕、顯示裝置中斷；訪客自己選的不提示
+  '': ['此裝置無法顯示 3D 場景，已改用平面版', 'This device can’t show the 3D scene, so you’re seeing the flat version.'],
+  'too slow': ['此裝置跑 3D 較吃力，已改用平面版（右上角可切換 2D／3D）', 'The 3D scene is heavy for this device, so you’re seeing the flat version (switch back at top right).'],
+  'lite': ['已為此裝置使用平面版，右上角可切換 3D', 'Showing the flat version on this device. Switch to 3D at top right.'],
+  'device lost': ['顯示裝置中斷，已改用平面版（重新整理可再試一次）', 'Graphics device lost, so you’re seeing the flat version (reload to try again).'],
 };
 const EN_TITLE = "FG STUDIO | Long-Term Video Partner for Brands, Free Trial Available", EN_DESC = "We get to know your brand with care, then tell your story well. Long-term video production for brands, companies and schools, with a free trial and ad placement.";
 const metaEl = (sel) => document.querySelector(sel);
@@ -295,7 +292,7 @@ function setLang(l) {
 document.querySelectorAll('.lang [data-lang]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); setLang(b.dataset.lang); }));
 { let saved = null; try { saved = localStorage.getItem('lang'); } catch {} setLang(qs.get('lang') || saved || 'zh'); } // ?lang=en 可以直接開英文版
 addEventListener('keydown', (e) => {
-  if (focus >= 0 || view) return;
+  if (FLAT || focus >= 0 || view) return;
   const s = Math.round(scrollT());
   if (e.key === 'ArrowDown' || e.key === 'PageDown') { e.preventDefault(); goto(Math.min(s + 1, STOPS)); }
   if (e.key === 'ArrowUp' || e.key === 'PageUp') { e.preventDefault(); goto(Math.max(s - 1, 0)); }
@@ -303,7 +300,7 @@ addEventListener('keydown', (e) => {
 
 // 形象影片燈箱
 const lb = $('#lightbox'), lbv = $('#lightbox video');
-const openFilm = (path) => { lbv.src = `${MEDIA}${path}`; lb.hidden = false; lbv.play().catch(() => {}); };
+const openFilm = (path) => { lb.querySelector('.sw').hidden = true; lbv.removeAttribute('poster'); lbv.src = `${MEDIA}${path}`; lb.hidden = false; lbv.play().catch(() => {}); };
 document.querySelectorAll('[data-film]').forEach((b) => b.addEventListener('click', () => openFilm(b.dataset.film)));
 const closeLb = () => { lb.hidden = true; lbv.pause(); lbv.removeAttribute('src'); lbv.load(); };
 lb.addEventListener('click', (e) => { if (e.target === lb || e.target.closest('.x')) closeLb(); });
@@ -349,8 +346,8 @@ function pick(cx, cy) {
 }
 const free = (e) => !e.target.closest('button, a, input, video, .glass, #vbar, #lightbox, #ads');
 canvas.addEventListener('click', () => {}); // iOS Safari：元素自己沒有 click 監聽的話，點它不會送出 click，下面掛在 window 上的就收不到
-addEventListener('click', (e) => { if (!free(e)) return; const s = pick(e.clientX, e.clientY); if (s === FILM) openFilm(OPS_FILM); else if (s >= 0) fly(s); });
-addEventListener('pointermove', (e) => { document.body.classList.toggle('pick', e.pointerType === 'mouse' && free(e) && pick(e.clientX, e.clientY) >= 0); });
+addEventListener('click', (e) => { if (FLAT || !free(e)) return; const s = pick(e.clientX, e.clientY); if (s === FILM) openFilm(OPS_FILM); else if (s >= 0) fly(s); });
+addEventListener('pointermove', (e) => { document.body.classList.toggle('pick', !FLAT && e.pointerType === 'mouse' && free(e) && pick(e.clientX, e.clientY) >= 0); });
 
 let introK = 1; // 開場鏡頭的進度：0 最遠，1 就定位
 // 進場：音樂開著的話，載入好先停在「ENTER」，點了才進場、開場鏡頭才開始走（這一下也讓瀏覽器允許出聲）。
@@ -370,15 +367,52 @@ function ui(T) {
 }
 
 // ---------- 啟動 ----------
+// 平面版：flat.js 把同一份內容搬進一般往下捲的版面。3D 跑到一半才換過來的，停在差不多的地方
 function fallback(msg) {
-  document.body.classList.add('nogpu'); introK = 1; loaded();
-  console.warn('3D unavailable:', msg);
-  noteMsg = msg; setLang(lang); // 提示要說實話：跑太慢或顯示裝置中斷，不是「不支援」
-  const loop = () => { ui(scrollT()); flat(); requestAnimationFrame(loop); }; loop();
+  if (FLAT) return; FLAT = true;
+  const at = Math.round(scrollT());
+  document.body.classList.add('flat', 'ready'); introK = 1;
+  slots.forEach((s) => { if (s.v) { s.v.pause(); s.v.removeAttribute('src'); s.v.load(); } }); // 牆上的預覽影片不用再播
+  if (msg === 'too slow') { try { localStorage.setItem('fgAutoFlat', '1'); } catch {} } // 下次直接用平面版
+  console.warn('flat version:', msg);
+  noteMsg = msg; setLang(lang);
+  buildFlat({ SCN, MEDIA, openFilm, note: msg !== 'chosen' });
+  setViewBtn(); loaded();
+  if (at > 0) requestAnimationFrame(() => flatGo(at));
 }
 
+// 要不要直接用平面版：網址、訪客自己選的、上次跑不動的、明顯很弱的裝置（省流量、記憶體 2GB 以下、雙核心以下、軟體算圖或舊的手機顯示晶片）。
+// 其他的先跑 3D，跑不動再自動換（frame() 裡的 'too slow'）
+function flatReason() {
+  if (qs.has('3d')) return '';
+  if (qs.has('flat') || qs.has('nogpu')) return 'chosen';
+  let pref = null, auto = null; try { pref = localStorage.getItem('fgView'); auto = localStorage.getItem('fgAutoFlat'); } catch {}
+  if (pref === '3d') return '';
+  if (pref === 'flat') return 'chosen';
+  if (auto) return 'too slow';
+  if (navigator.connection && navigator.connection.saveData) return 'lite';
+  if (navigator.deviceMemory && navigator.deviceMemory <= 2) return 'lite';
+  if (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2) return 'lite';
+  try {
+    const gl = document.createElement('canvas').getContext('webgl'), ext = gl && gl.getExtension('WEBGL_debug_renderer_info');
+    const r = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : '';
+    if (gl) gl.getExtension('WEBGL_lose_context')?.loseContext();
+    if (/swiftshader|llvmpipe|softpipe|software|basic render|mali-t|mali-4|mali-g(31|51|52)\b|adreno \(tm\) [2-5]\d\d\b|powervr|intel\(r\) hd graphics [2-4]\d{3}\b|intel gma/i.test(r)) return 'lite';
+  } catch {}
+  return '';
+}
+
+// 右上角的 2D／3D 切換（跟中文／EN 同一個樣子）：記住選擇，重新載入
+function setViewBtn() { document.querySelectorAll('#viewSw [data-v]').forEach((b) => { const on = (b.dataset.v === 'flat') === FLAT; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); }); }
+document.querySelectorAll('#viewSw [data-v]').forEach((b) => b.addEventListener('click', (e) => {
+  e.stopPropagation(); const want = b.dataset.v; if ((want === 'flat') === FLAT) return;
+  try { localStorage.setItem('fgView', want); if (want === '3d') localStorage.removeItem('fgAutoFlat'); } catch {}
+  const u = new URL(location.href); ['flat', '3d', 'nogpu'].forEach((k) => u.searchParams.delete(k)); location.replace(u);
+}));
+setViewBtn();
+
 async function start() {
-  if (qs.has('nogpu')) return fallback('forced'); // ?nogpu：強制看靜態版本
+  const why = flatReason(); if (why) return fallback(why); // ?flat／?3d 可以強制
   // 先試 WebGPU；沒有就退到 WebGL2（gl.js，?gl 可以強制走這條）；兩個都不行才顯示靜態版本
   let device = null;
   if (navigator.gpu && !qs.has('gl')) {

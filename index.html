@@ -194,8 +194,6 @@ body.pick { cursor: pointer; }
 #stage { -webkit-tap-highlight-color: transparent; position: fixed; inset: 0; width: 100%; height: 100%; display: block; background: var(--bg); opacity: 0; transition: opacity 1.2s; }
 body.ready #stage { opacity: 1; }
 /* 靜態版本：背景圖放在 body::before，畫布整個拿掉（場景跑到一半才換過來時，畫布上還留著最後一格） */
-body.nogpu #stage { display: none; }
-body.nogpu::before { content: ""; position: fixed; inset: 0; background: #05070b url(assets/fallback.jpg) center/cover; }
 #track { width: 1px; pointer-events: none; }
 .shade { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(110% 85% at 0% 100%, rgba(4,5,8,.94), rgba(4,5,8,.6) 42%, transparent 74%), linear-gradient(180deg, rgba(5,7,11,.5), transparent 20%, transparent 55%, rgba(5,7,11,.7)); }
 
@@ -208,6 +206,10 @@ header { position: fixed; z-index: 5; top: 0; left: 0; right: 0; display: flex; 
 .lang span { opacity: .35; }
 /* 背景音樂開關：關著時三條短線靜止，開著時輕輕跳動 */
 header { gap: 18px; } header .brand { margin-right: auto; }
+/* 2D／3D 切換 */
+.lang button { white-space: nowrap; } .brand { white-space: nowrap; }
+@media (max-width: 480px) { header { gap: 10px; padding-left: 18px; padding-right: 16px; } .brand { font-size: 16px; letter-spacing: .1em; } .lang { gap: 1px; letter-spacing: .1em; } .lang button { padding: 8px 4px; } #musicBtn { min-width: 26px; padding: 8px 2px; } } /* 手機：品牌、2D／3D、音樂、中文／EN 放得下一行 */
+@media (max-width: 360px) { .panel.ops .acts { flex-wrap: wrap !important; } header { gap: 6px; padding-left: 14px; padding-right: 12px; } .brand { font-size: 14px; letter-spacing: .06em; } .lang { letter-spacing: .04em; font-size: 11px; } .lang button { padding: 8px 3px; } }
 #musicBtn { display: flex; align-items: center; gap: 8px; padding: 8px 6px; min-width: 32px; min-height: 32px; justify-content: center; border: 0; background: none; cursor: pointer; color: var(--dim); font-size: 12px; letter-spacing: .2em; }
 #musicBtn.on { color: var(--ink); }
 #musicBtn i { display: flex; align-items: flex-end; gap: 2px; height: 12px; }
@@ -271,7 +273,6 @@ html.lock, html.lock body { overflow: hidden; }
 .glass .go:hover { border-top-color: var(--ink); }
 .glass .go:hover::after { transform: translateX(14px); }
 .glass.vip .go { padding: 36px 42px; border: 0; background: var(--ink); color: #0a0c10; }
-body.nogpu .wl.glass { background: rgba(8,11,16,.94); outline: 1px solid var(--line); backdrop-filter: none; -webkit-backdrop-filter: none; }
 /* 玻璃打開時的操作：關閉；直式螢幕一次一片，用頁籤換 */
 #vbar { display: none; }
 body[data-view] #vbar { display: block; }
@@ -345,8 +346,8 @@ body[data-view] #vbar { display: block; }
 .panel h2 { font-weight: 300; font-size: clamp(28px, 4.2vw, 46px); letter-spacing: .08em; line-height: 1.15; margin: 8px 0 14px; }
 .panel p { color: var(--dim); max-width: 30em; font-size: 15.5px; }
 /* 場景裡已經有同名大字的站：說明不重複標題（靜態版本沒有場景標示，照常顯示） */
-body:not(.nogpu) .panel h2.dup { display: none; }
-body:not(.nogpu) .panel h2.dup + p { margin-top: 10px; }
+body:not(.flat) .panel h2.dup { display: none; }
+body:not(.flat) .panel h2.dup + p { margin-top: 10px; }
 .panel .trust { margin-top: 10px; font-size: 13px; letter-spacing: .14em; }
 .panel .foot { margin-top: 20px; font-size: 11px; letter-spacing: .26em; opacity: .7; }
 .panel.pass.on { pointer-events: none; } /* 這一站的說明不擋住後面牆上的格子；只有按鈕與選單收得到點擊 */
@@ -382,6 +383,8 @@ body:not([data-stop="0"]) .rail .tip { opacity: 0; }
 
 #lightbox { position: fixed; z-index: 20; inset: 0; background: rgba(3,4,7,.92); display: grid; place-items: center; padding: 5vw; }
 #lightbox video { max-width: 100%; max-height: 82vh; background: #000; box-shadow: 0 0 120px rgba(160,200,255,.18); }
+#lightbox .sw { position: absolute; top: 24px; left: 26px; display: flex; align-items: center; gap: 14px; font-size: 13px; letter-spacing: .2em; color: var(--dim); }
+#lightbox .sw button { width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 50%; background: rgba(8,10,14,.6); cursor: pointer; font-size: 20px; line-height: 1; padding-bottom: 3px; }
 #lightbox .x { position: absolute; top: 22px; right: 26px; background: none; border: 0; font-size: 30px; cursor: pointer; }
 /* 廣告投放：牆上一塊小板子，只寫 AD，點了打開說明 */
 .wl.tile.ads { width: 440px; height: 440px; }
@@ -411,7 +414,6 @@ body:not([data-stop="0"]) .rail .tip { opacity: 0; }
 #ads .go::after { content: "→"; letter-spacing: 0; font-size: 18px; }
 #ads .go:hover { background: #fff; }
 .note { position: fixed; z-index: 6; left: 50%; top: 22px; transform: translateX(-50%); font-size: 12px; letter-spacing: .18em; color: var(--dim); border: 1px solid var(--line); padding: 6px 14px; background: rgba(8,10,14,.5); display: none; }
-body.nogpu .note { display: block; }
 /* 載入畫面：場景畫出第一格（或換成靜態版本）之前蓋住全頁 */
 #load { position: fixed; z-index: 30; inset: 0; background: var(--bg); display: grid; place-content: center; justify-items: center; gap: 22px; transition: opacity .9s, visibility 0s .9s; }
 #load img { height: 62px; margin-bottom: 4px; }
@@ -421,10 +423,10 @@ body.nogpu .note { display: block; }
 @keyframes load { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
 /* 進場：載入好了先停在「ENTER」（這一下讓瀏覽器允許播放音樂），點了才進場；音樂被關掉的人直接進場 */
 #enter, #enterHint { display: none; }
-body.ready #load i, body.nogpu #load i { display: none; }
-body.ready #enter, body.nogpu #enter { display: block; margin-top: 6px; padding: 14px 34px; border: 1px solid var(--line); background: none; cursor: pointer; font-size: 13px; letter-spacing: .34em; padding-right: calc(34px - .34em); animation: breathe 2.4s ease-in-out infinite; transition: border-color .3s, background .3s; }
-body.ready #enter:hover, body.nogpu #enter:hover { border-color: var(--warm); background: rgba(255,190,122,.06); }
-body.ready #enterHint, body.nogpu #enterHint { display: block; font-size: 11px; letter-spacing: .24em; color: var(--dim); }
+body.ready #load i, body.flat #load i { display: none; }
+body.ready #enter, body.flat #enter { display: block; margin-top: 6px; padding: 14px 34px; border: 1px solid var(--line); background: none; cursor: pointer; font-size: 13px; letter-spacing: .34em; padding-right: calc(34px - .34em); animation: breathe 2.4s ease-in-out infinite; transition: border-color .3s, background .3s; }
+body.ready #enter:hover, body.flat #enter:hover { border-color: var(--warm); background: rgba(255,190,122,.06); }
+body.ready #enterHint, body.flat #enterHint { display: block; font-size: 11px; letter-spacing: .24em; color: var(--dim); }
 @keyframes breathe { 0%, 100% { border-color: var(--line); } 50% { border-color: rgba(255,190,122,.7); } }
 body.entered #load { opacity: 0; visibility: hidden; }
 @media (max-width: 640px) {
@@ -435,11 +437,12 @@ body.entered #load { opacity: 0; visibility: hidden; }
   .panel.ops h2 { display: none; } /* 作業中心那一站：站名已經寫了 GVS OPERATIONS，手機上不重複大標題，免得蓋到後面的工作站 */
   .panel.ops .acts { flex-wrap: nowrap; gap: 10px; } .panel.ops .btn { padding: 12px 14px; letter-spacing: .12em; white-space: nowrap; }
   .panel.contact { bottom: 22px; } .panel.contact .acts { margin-top: 16px; gap: 10px; } .panel.contact .btn { padding: 11px 20px; } .panel.contact .foot { margin-top: 14px; }
-  body:not(.nogpu) .panel .no.dup { display: none; } /* 聯絡那一站按鈕多，站名會疊到櫃檯上的大字；場景裡已經有 CUSTOMER SERVICE */
+  body:not(.flat) .panel .no.dup { display: none; } /* 聯絡那一站按鈕多，站名會疊到櫃檯上的大字；場景裡已經有 CUSTOMER SERVICE */
   .menu { gap: 6px; } .menu button { padding: 10px 10px; font-size: 13px; }
   .panel:has(.menu:not([hidden])) p { display: none; } /* 選單打開時收起說明，免得整段疊到影片牆上 */
 }
 </style>
+<link rel="stylesheet" href="flat.css">
 </head>
 <body data-stop="0">
 <div id="load"><img src="assets/fg.png" alt=""><b>FG STUDIO</b><i aria-hidden="true"></i><button id="enter">ENTER</button><small id="enterHint">FOR GOD</small></div>
@@ -483,19 +486,11 @@ body.entered #load { opacity: 0; visibility: hidden; }
 <div id="vbar">
   <button class="x" data-en="CLOSE ×">關閉 ×</button>
   <div class="tabs"><button data-sel="0" data-en="Single">單支製作</button><button data-sel="1">VIP</button><button data-sel="2">VIP DOUBLE</button></div>
-  <!-- 方案說明書：像電子書一樣一頁一頁翻（內容與翻頁都在 book.js） -->
-  <div id="book" hidden>
-    <div class="bk" role="dialog" aria-modal="true" aria-label="方案說明書" data-en-label="Plan guide">
-      <button class="x" aria-label="關閉" data-en-label="Close">×</button>
-      <div class="pages"></div>
-      <div class="nav"><button class="prev" aria-label="上一頁" data-en-label="Previous page">‹</button><span class="no"></span><button class="next" aria-label="下一頁" data-en-label="Next page">›</button></div>
-      <button class="go" data-plan="GVS 合作方案" data-plan-en="GVS plans" data-en="Discuss GVS Plans">洽談 GVS 方案</button>
-    </div>
-  </div>
 </div>
 
 <header>
   <a class="brand" href="#" data-go="0">FG STUDIO</a>
+  <div class="lang" id="viewSw" role="group" aria-label="版本" data-en-label="Version"><button data-v="flat" aria-pressed="false">2D</button><span>/</span><button data-v="3d" class="on" aria-pressed="true">3D</button></div>
   <button id="musicBtn" aria-pressed="false" aria-label="背景音樂" data-en-label="Background music"><i aria-hidden="true"><b></b><b></b><b></b></i></button>
   <div class="lang" role="group" aria-label="Language"><button data-lang="zh" class="on" aria-pressed="true">中文</button><span>/</span><button data-lang="en" aria-pressed="false">EN</button></div>
 </header>
@@ -506,7 +501,7 @@ body.entered #load { opacity: 0; visibility: hidden; }
   <p class="sub" data-en="We get to know your brand with care, then tell your story well.">用心認識你的品牌，再說好你的故事。</p>
   <div class="acts">
     <button class="btn" data-go="1" data-en="About GVS">認識 GVS</button>
-    <button class="btn solid" data-go="3" data-en="View Plans">看方案</button>
+    <button class="btn solid" data-go="3" data-flat-go="plans" data-en="View Plans">看方案</button>
   </div>
 </section>
 
@@ -549,7 +544,16 @@ body.entered #load { opacity: 0; visibility: hidden; }
   <span class="tip" aria-hidden="true" data-en="SCROLL OR TAP">往下滑　或點按鈕</span>
 </nav>
 
-<div id="lightbox" hidden><button class="x" aria-label="關閉" data-en-label="Close">×</button><video controls playsinline></video></div>
+<!-- 方案說明書：像電子書一樣一頁一頁翻（內容與翻頁都在 book.js） -->
+<div id="book" hidden>
+  <div class="bk" role="dialog" aria-modal="true" aria-label="方案說明書" data-en-label="Plan guide">
+    <button class="x" aria-label="關閉" data-en-label="Close">×</button>
+    <div class="pages"></div>
+    <div class="nav"><button class="prev" aria-label="上一頁" data-en-label="Previous page">‹</button><span class="no"></span><button class="next" aria-label="下一頁" data-en-label="Next page">›</button></div>
+    <button class="go" data-plan="GVS 合作方案" data-plan-en="GVS plans" data-en="Discuss GVS Plans">洽談 GVS 方案</button>
+  </div>
+</div>
+<div id="lightbox" hidden><button class="x" aria-label="關閉" data-en-label="Close">×</button><div class="sw" hidden><button data-d="-1" aria-label="上一支" data-en-label="Previous video">‹</button><span></span><button data-d="1" aria-label="下一支" data-en-label="Next video">›</button></div><video controls playsinline></video></div>
 <!-- 廣告投放的說明（牆上的板子、第 02 站的按鈕都打開這個） -->
 <div id="ads" hidden>
   <div class="adbox" role="dialog" aria-modal="true" aria-labelledby="adsTitle">
