@@ -207,9 +207,9 @@ header { position: fixed; z-index: 5; top: 0; left: 0; right: 0; display: flex; 
 /* 背景音樂開關：關著時三條短線靜止，開著時輕輕跳動 */
 header { gap: 18px; } header .brand { margin-right: auto; }
 /* 2D／3D 切換 */
-#viewBtn { padding: 5px 8px; border: 1px solid var(--line); background: none; cursor: pointer; color: var(--dim); font-size: 11px; letter-spacing: .16em; line-height: 1; }
-#viewBtn:hover { color: var(--ink); border-color: var(--ink); }
-@media (max-width: 420px) { header { gap: 12px; } }
+.lang button { white-space: nowrap; } .brand { white-space: nowrap; }
+@media (max-width: 480px) { header { gap: 10px; padding-left: 18px; padding-right: 16px; } .brand { font-size: 16px; letter-spacing: .1em; } .lang { gap: 1px; letter-spacing: .1em; } .lang button { padding: 8px 4px; } #musicBtn { min-width: 26px; padding: 8px 2px; } } /* 手機：品牌、2D／3D、音樂、中文／EN 放得下一行 */
+@media (max-width: 360px) { .panel.ops .acts { flex-wrap: wrap !important; } header { gap: 6px; padding-left: 14px; padding-right: 12px; } .brand { font-size: 14px; letter-spacing: .06em; } .lang { letter-spacing: .04em; font-size: 11px; } .lang button { padding: 8px 3px; } }
 #musicBtn { display: flex; align-items: center; gap: 8px; padding: 8px 6px; min-width: 32px; min-height: 32px; justify-content: center; border: 0; background: none; cursor: pointer; color: var(--dim); font-size: 12px; letter-spacing: .2em; }
 #musicBtn.on { color: var(--ink); }
 #musicBtn i { display: flex; align-items: flex-end; gap: 2px; height: 12px; }
@@ -490,7 +490,7 @@ body.entered #load { opacity: 0; visibility: hidden; }
 
 <header>
   <a class="brand" href="#" data-go="0">FG STUDIO</a>
-  <button id="viewBtn" aria-label="切換到平面版">2D</button>
+  <div class="lang" id="viewSw" role="group" aria-label="版本" data-en-label="Version"><button data-v="flat" aria-pressed="false">2D</button><span>/</span><button data-v="3d" class="on" aria-pressed="true">3D</button></div>
   <button id="musicBtn" aria-pressed="false" aria-label="背景音樂" data-en-label="Background music"><i aria-hidden="true"><b></b><b></b><b></b></i></button>
   <div class="lang" role="group" aria-label="Language"><button data-lang="zh" class="on" aria-pressed="true">中文</button><span>/</span><button data-lang="en" aria-pressed="false">EN</button></div>
 </header>

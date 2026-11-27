@@ -264,7 +264,7 @@ const i18n = [...document.querySelectorAll('[data-en]')].map((el) => ({ el, zh: 
 const i18nLabel = [...document.querySelectorAll('[data-en-label]')].map((el) => ({ el, zh: el.getAttribute('aria-label'), en: el.dataset.enLabel }));
 const NOTE = { // 改用平面版時的提示：一般（不支援）、跑太慢、裝置較輕、顯示裝置中斷；訪客自己選的不提示
   '': ['此裝置無法顯示 3D 場景，已改用平面版', 'This device can’t show the 3D scene, so you’re seeing the flat version.'],
-  'too slow': ['此裝置跑 3D 較吃力，已改用平面版（右上角可切回 3D）', 'The 3D scene is heavy for this device, so you’re seeing the flat version (switch back at top right).'],
+  'too slow': ['此裝置跑 3D 較吃力，已改用平面版（右上角可切換 2D／3D）', 'The 3D scene is heavy for this device, so you’re seeing the flat version (switch back at top right).'],
   'lite': ['已為此裝置使用平面版，右上角可切換 3D', 'Showing the flat version on this device. Switch to 3D at top right.'],
   'device lost': ['顯示裝置中斷，已改用平面版（重新整理可再試一次）', 'Graphics device lost, so you’re seeing the flat version (reload to try again).'],
 };
@@ -402,14 +402,13 @@ function flatReason() {
   return '';
 }
 
-// 右上角的 2D／3D 切換：記住選擇，重新載入
-const viewBtn = $('#viewBtn');
-function setViewBtn() { viewBtn.textContent = FLAT ? '3D' : '2D'; viewBtn.setAttribute('aria-label', FLAT ? (lang === 'en' ? 'Switch to 3D' : '切換到 3D 版') : (lang === 'en' ? 'Switch to flat version' : '切換到平面版')); }
-viewBtn.addEventListener('click', (e) => {
-  e.stopPropagation();
-  try { localStorage.setItem('fgView', FLAT ? '3d' : 'flat'); if (FLAT) localStorage.removeItem('fgAutoFlat'); } catch {}
+// 右上角的 2D／3D 切換（跟中文／EN 同一個樣子）：記住選擇，重新載入
+function setViewBtn() { document.querySelectorAll('#viewSw [data-v]').forEach((b) => { const on = (b.dataset.v === 'flat') === FLAT; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); }); }
+document.querySelectorAll('#viewSw [data-v]').forEach((b) => b.addEventListener('click', (e) => {
+  e.stopPropagation(); const want = b.dataset.v; if ((want === 'flat') === FLAT) return;
+  try { localStorage.setItem('fgView', want); if (want === '3d') localStorage.removeItem('fgAutoFlat'); } catch {}
   const u = new URL(location.href); ['flat', '3d', 'nogpu'].forEach((k) => u.searchParams.delete(k)); location.replace(u);
-});
+}));
 setViewBtn();
 
 async function start() {
